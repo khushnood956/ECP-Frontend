@@ -4,11 +4,14 @@ import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 
 const Layout = () => {
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+
   return (
     <div className="dashboard-layout">
-      <Sidebar />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)}></div>}
       <div className="main-content">
-        <Topbar />
+        <Topbar toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
         <Outlet />
       </div>
     </div>

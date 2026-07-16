@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { AppProvider } from './context/AppContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 import Layout from './components/Layout';
@@ -8,6 +9,14 @@ import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
+import Scholarships from './pages/Scholarships';
+import Universities from './pages/Universities';
+import Applications from './pages/Applications';
+import Documents from './pages/Documents';
+import Settings from './pages/Settings';
+import ScholarshipDetail from './pages/ScholarshipDetail';
+import UniversityDetail from './pages/UniversityDetail';
+import ApplicationDetail from './pages/ApplicationDetail';
 
 const router = createBrowserRouter([
   {
@@ -44,47 +53,35 @@ const router = createBrowserRouter([
       },
       {
         path: '/scholarships',
-        element: (
-          <div className="dashboard-content">
-            <div className="page-header">
-              <h1 className="page-title">Scholarships</h1>
-              <p className="page-subtitle">Coming soon in Milestone 2.</p>
-            </div>
-          </div>
-        )
+        element: <Scholarships />
+      },
+      {
+        path: '/scholarships/:id',
+        element: <ScholarshipDetail />
       },
       {
         path: '/universities',
-        element: (
-          <div className="dashboard-content">
-            <div className="page-header">
-              <h1 className="page-title">Universities</h1>
-              <p className="page-subtitle">Coming soon in Milestone 2.</p>
-            </div>
-          </div>
-        )
+        element: <Universities />
+      },
+      {
+        path: '/universities/:id',
+        element: <UniversityDetail />
       },
       {
         path: '/applications',
-        element: (
-          <div className="dashboard-content">
-            <div className="page-header">
-              <h1 className="page-title">Applications</h1>
-              <p className="page-subtitle">Coming soon in Milestone 3.</p>
-            </div>
-          </div>
-        )
+        element: <Applications />
+      },
+      {
+        path: '/applications/:id',
+        element: <ApplicationDetail />
+      },
+      {
+        path: '/documents',
+        element: <Documents />
       },
       {
         path: '/settings',
-        element: (
-          <div className="dashboard-content">
-            <div className="page-header">
-              <h1 className="page-title">Settings</h1>
-              <p className="page-subtitle">Coming soon.</p>
-            </div>
-          </div>
-        )
+        element: <Settings />
       }
     ]
   },
@@ -97,7 +94,9 @@ const router = createBrowserRouter([
 const App = () => {
   return (
     <AuthProvider>
-      <RouterProvider router={router} />
+      <AppProvider>
+        <RouterProvider router={router} />
+      </AppProvider>
     </AuthProvider>
   );
 };

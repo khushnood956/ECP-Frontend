@@ -7,10 +7,25 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
 dist
 dist-ssr
 *.local
+
+# Testing
+playwright-report/
+test-results/
+
+# Agent/AI configuration and temporary notes
+.agents/
+ORIGINAL_REQUEST.md
+PROJECT.md
+TEST_INFRA.md
+TEST_READY.md
+
+# Media and references
+Reference images/
 
 # Editor directories and files
 .vscode/*

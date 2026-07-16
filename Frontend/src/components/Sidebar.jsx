@@ -6,7 +6,7 @@ import {
   Building, User, Settings, LogOut
 } from 'lucide-react';
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen, onClose }) => {
   const { logout } = useAuth();
   const navigate = useNavigate();
 
@@ -20,12 +20,13 @@ const Sidebar = () => {
     { path: '/scholarships', label: 'Scholarships', icon: Search },
     { path: '/universities', label: 'Universities', icon: Building },
     { path: '/applications', label: 'My Applications', icon: FileText },
+    { path: '/documents', label: 'Documents', icon: FileText },
     { path: '/profile', label: 'My Profile', icon: User },
   ];
 
   return (
-    <div className="sidebar">
-      <div className="brand" style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
+    <div className={`sidebar ${isOpen ? 'open' : ''}`}>
+      <div className="brand" style={{ cursor: 'pointer' }} onClick={() => { navigate('/'); onClose?.(); }}>
         <GraduationCap className="brand-icon" size={28} />
         EduConsultant
       </div>
@@ -38,6 +39,7 @@ const Sidebar = () => {
                 to={item.path} 
                 className={({ isActive }) => `nav-link nav-item ${isActive ? 'active' : ''}`}
                 style={{ textDecoration: 'none' }}
+                onClick={() => onClose?.()}
               >
                 <Icon size={20} />
                 {item.label}
@@ -50,6 +52,7 @@ const Sidebar = () => {
             to="/settings" 
             className={({ isActive }) => `nav-link nav-item ${isActive ? 'active' : ''}`}
             style={{ textDecoration: 'none' }}
+            onClick={() => onClose?.()}
           >
             <Settings size={20} />
             Settings
