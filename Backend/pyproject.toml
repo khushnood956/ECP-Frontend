@@ -18,6 +18,9 @@ addopts = "-ra -q --asyncio-mode=auto"
 testpaths = [
     "tests",
 ]
+pythonpath = [
+    ".",
+]
 
 [tool.black]
 line-length = 88
