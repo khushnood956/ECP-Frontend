@@ -1,4 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any, Sequence
 from app.repositories.base import BaseRepository
 from app.models.scholarship import Scholarship
 from app.repositories.params import PaginationParams, PaginatedResult, FilterCondition, FilterOperator
@@ -12,3 +13,7 @@ class ScholarshipRepository(BaseRepository[Scholarship]):
             FilterCondition(field="is_active", operator=FilterOperator.EQ, value=True)
         ]
         return await self.list_paginated(pagination=pagination, filters=filters)
+
+    async def search(self, **kwargs: Any) -> Sequence[Scholarship]:
+        """Domain specific search query."""
+        return await self.list(**kwargs)
