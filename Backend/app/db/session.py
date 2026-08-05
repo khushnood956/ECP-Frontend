@@ -1,7 +1,9 @@
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.database import AsyncSessionLocal
+
 from app.core.logging.logger import get_logger
+from app.db.database import AsyncSessionLocal
 
 logger = get_logger(__name__)
 

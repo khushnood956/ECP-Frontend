@@ -1,14 +1,25 @@
+from collections.abc import Sequence
+from typing import Any
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Any, Sequence
-from app.repositories.base import BaseRepository
+
 from app.models.scholarship import Scholarship
-from app.repositories.params import PaginationParams, PaginatedResult, FilterCondition, FilterOperator
+from app.repositories.base import BaseRepository
+from app.repositories.params import (
+    FilterCondition,
+    FilterOperator,
+    PaginatedResult,
+    PaginationParams,
+)
+
 
 class ScholarshipRepository(BaseRepository[Scholarship]):
     def __init__(self, session: AsyncSession):
         super().__init__(model=Scholarship, session=session)
 
-    async def get_active(self, pagination: PaginationParams) -> PaginatedResult[Scholarship]:
+    async def get_active(
+        self, pagination: PaginationParams
+    ) -> PaginatedResult[Scholarship]:
         filters = [
             FilterCondition(field="is_active", operator=FilterOperator.EQ, value=True)
         ]

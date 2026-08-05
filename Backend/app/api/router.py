@@ -1,11 +1,13 @@
 from fastapi import APIRouter
 
-# Import sub-routers here when they are implemented
-# from app.api.v1 import users, agencies, admin
+from app.api.v1 import agencies, leads, scholarships, students, users
 
 api_router = APIRouter()
 
-# Example router registration (commented out until modules are created)
-# api_router.include_router(users.router, prefix="/users", tags=["users"])
-# api_router.include_router(agencies.router, prefix="/agencies", tags=["agencies"])
-# api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
+api_router.include_router(users.router, prefix="/users", tags=["Users"])
+api_router.include_router(students.router, prefix="/students", tags=["Students"])
+api_router.include_router(agencies.router, prefix="/agencies", tags=["Agencies"])
+api_router.include_router(
+    scholarships.router, prefix="/scholarships", tags=["Scholarships"]
+)
+api_router.include_router(leads.router, prefix="/leads", tags=["Leads"])

@@ -1,17 +1,21 @@
-from typing import TypeVar, Generic, Any, Sequence, Optional, cast
+from collections.abc import Sequence
+from typing import Any, Generic, TypeVar, cast
 from uuid import UUID
 
 from app.repositories.interfaces import IRepository
 from app.repositories.transaction import TransactionManager
+from app.services.exceptions import BusinessRuleViolation, EntityNotFound
 from app.services.interfaces import IService
-from app.services.exceptions import EntityNotFound, BusinessRuleViolation
 
 ModelType = TypeVar("ModelType")
 CreateSchemaType = TypeVar("CreateSchemaType")
 UpdateSchemaType = TypeVar("UpdateSchemaType")
 
 
-class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType], IService[ModelType, CreateSchemaType, UpdateSchemaType]):
+class BaseService(
+    Generic[ModelType, CreateSchemaType, UpdateSchemaType],
+    IService[ModelType, CreateSchemaType, UpdateSchemaType],
+):
     """
     Generic base service implementation providing common CRUD operations.
     Follows SOLID principles by relying on abstractions (IRepository).
@@ -21,7 +25,7 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType], IServi
     def __init__(
         self,
         repository: IRepository[ModelType],
-        transaction_manager: TransactionManager
+        transaction_manager: TransactionManager,
     ) -> None:
         """
         Initialize the base service using constructor dependency injection.
@@ -36,13 +40,13 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType], IServi
     async def _require_entity(self, id: UUID) -> ModelType:
         """
         Verify that an entity exists by its ID and return it.
-        
+
         Args:
             id: The UUID of the entity to verify.
-            
+
         Returns:
             The domain model if found.
-            
+
         Raises:
             EntityNotFound: If the entity with the given ID does not exist.
         """
@@ -51,13 +55,24 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType], IServi
             raise EntityNotFound(f"Entity with id {id} not found.")
         return existing_obj
 
-    def _prevent_redundant_state(self, current_state: Any, target_state: Any, error_message: str) -> None:
+    def _prevent_redundant_state(
+        self, current_state: Any, target_state: Any, error_message: str
+    ) -> None:
         """
         Validates that an entity is not already in the target state.
         Raises BusinessRuleViolation if the current state matches the target state.
         """
         if current_state == target_state:
             raise BusinessRuleViolation(error_message)
+
+    def _to_model(self, obj_in: CreateSchemaType) -> ModelType:
+        """
+        Convert a creation schema into an ORM model instance.
+        Must be implemented by concrete services.
+        """
+        raise NotImplementedError(
+            "Subclasses must implement _to_model to convert CreateSchemaType to ModelType."
+        )
 
     async def create(self, obj_in: CreateSchemaType) -> ModelType:
         """
@@ -70,11 +85,10 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType], IServi
             The created domain model.
         """
         async with self.transaction_manager.transaction():
-            # In a real service, mapping from CreateSchemaType to ModelType might occur here.
-            # We assume obj_in can be accepted by the repository (e.g. as a dict or model).
-            return await self.repository.create(cast(ModelType, obj_in))
+            model_instance = self._to_model(obj_in)
+            return await self.repository.create(model_instance)
 
-    async def get_by_id(self, id: UUID) -> Optional[ModelType]:
+    async def get_by_id(self, id: UUID) -> ModelType | None:
         """
         Retrieve an entity by its unique identifier.
 
@@ -86,7 +100,7 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType], IServi
         """
         return await self.repository.get_by_id(id)
 
-    async def update(self, id: UUID, obj_in: UpdateSchemaType) -> Optional[ModelType]:
+    async def update(self, id: UUID, obj_in: UpdateSchemaType) -> ModelType | None:
         """
         Update an existing entity wrapped in a transaction.
         Checks for existence before updating.
@@ -103,8 +117,12 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType], IServi
         """
         async with self.transaction_manager.transaction():
             await self._require_entity(id)
-            
-            update_data = obj_in.model_dump(exclude_unset=True) if hasattr(obj_in, "model_dump") else cast(dict[str, Any], obj_in)
+
+            update_data = (
+                obj_in.model_dump(exclude_unset=True)
+                if hasattr(obj_in, "model_dump")
+                else cast(dict[str, Any], obj_in)
+            )
             return await self.repository.update(id, update_data)
 
     async def delete(self, id: UUID) -> bool:
@@ -117,13 +135,13 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType], IServi
 
         Returns:
             True if deleted successfully.
-            
+
         Raises:
             EntityNotFound: If the entity with the given ID does not exist.
         """
         async with self.transaction_manager.transaction():
             await self._require_entity(id)
-            
+
             return await self.repository.delete(id)
 
     async def list(self, **kwargs: Any) -> Sequence[ModelType]:

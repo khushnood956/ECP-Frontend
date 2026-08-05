@@ -1,18 +1,20 @@
 import time
 import uuid
-from typing import Callable
-from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
-from app.core.logging.logger import request_id_ctx_var, get_logger
+
+from fastapi import Request
+
+from app.core.logging.logger import get_logger, request_id_ctx_var
 
 logger = get_logger(__name__)
+
 
 class RequestLoggingMiddleware:
     """
     Pure ASGI Middleware that ensures every request has an X-Request-ID.
-    It sets the ID in contextvars, request.state, logs request/response metadata, 
+    It sets the ID in contextvars, request.state, logs request/response metadata,
     and appends the ID to the response header.
     """
+
     def __init__(self, app):
         self.app = app
 
@@ -28,10 +30,10 @@ class RequestLoggingMiddleware:
         # Set to request state
         scope["state"] = scope.get("state", {})
         scope["state"]["request_id"] = request_id
-        
+
         # Set context var
         token = request_id_ctx_var.set(request_id)
-        
+
         start_time = time.time()
         logger.info(f"Incoming Request: {request.method} {request.url.path}")
 
@@ -40,7 +42,7 @@ class RequestLoggingMiddleware:
                 headers = message.setdefault("headers", [])
                 # Ensure X-Request-ID is in the response headers
                 headers.append((b"x-request-id", request_id.encode("latin-1")))
-                
+
                 status_code = message["status"]
                 process_time = (time.time() - start_time) * 1000
                 logger.info(
@@ -51,9 +53,12 @@ class RequestLoggingMiddleware:
 
         try:
             await self.app(scope, receive, send_wrapper)
-        except Exception as exc:
+        except Exception:
             process_time = (time.time() - start_time) * 1000
-            logger.error(f"Request failed: {request.method} {request.url.path} - Time: {process_time:.2f}ms", exc_info=True)
+            logger.error(
+                f"Request failed: {request.method} {request.url.path} - Time: {process_time:.2f}ms",
+                exc_info=True,
+            )
             raise
         finally:
             request_id_ctx_var.reset(token)

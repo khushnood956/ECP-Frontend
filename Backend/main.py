@@ -1,18 +1,20 @@
-import uvicorn
 from contextlib import asynccontextmanager
+
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.core.config.settings import settings
 from app.api.router import api_router
+from app.common.schemas.responses import SuccessResponse
+from app.common.utils.responses import success_response
+from app.core.config.settings import settings
+from app.core.exceptions.handlers import register_exception_handlers
 from app.core.logging.logger import get_logger
 from app.middleware.request_id import RequestLoggingMiddleware
-from app.core.exceptions.handlers import register_exception_handlers
-from app.common.utils.responses import success_response
-from app.common.schemas.responses import SuccessResponse
 
 logger = get_logger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -25,9 +27,9 @@ async def lifespan(app: FastAPI):
     logger.info(f"Version: {settings.PROJECT_VERSION}")
     logger.info(f"Debug Mode: {settings.DEBUG}")
     logger.info("---------------------------------------")
-    
+
     yield
-    
+
     logger.info(f"--- Shutting down {settings.PROJECT_NAME} ---")
 
 
@@ -41,7 +43,7 @@ def create_app() -> FastAPI:
         version=settings.PROJECT_VERSION,
         description="EduConsultant Backend API",
         openapi_url=f"{settings.API_PREFIX}/openapi.json",
-        lifespan=lifespan
+        lifespan=lifespan,
     )
 
     # Register Middlewares
@@ -71,13 +73,15 @@ def create_app() -> FastAPI:
         """
         logger.info("Health check endpoint accessed.")
         return success_response(
-            message="Service is healthy and running.",
-            data={"status": "ok"}
+            message="Service is healthy and running.", data={"status": "ok"}
         )
 
     return app
 
+
 app = create_app()
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host=settings.HOST, port=settings.PORT, reload=settings.DEBUG)
+    uvicorn.run(
+        "main:app", host=settings.HOST, port=settings.PORT, reload=settings.DEBUG
+    )

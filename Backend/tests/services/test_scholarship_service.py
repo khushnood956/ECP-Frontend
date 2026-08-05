@@ -1,17 +1,24 @@
-import pytest
 import uuid
 from unittest.mock import AsyncMock
+
+import pytest
+
 from app.models.scholarship import Scholarship
-from app.services.scholarship_service import ScholarshipService
 from app.services.exceptions import BusinessRuleViolation
+from app.services.scholarship_service import ScholarshipService
+
 
 @pytest.fixture
 def scholarship_repo_mock():
     return AsyncMock()
 
+
 @pytest.fixture
 def scholarship_service(scholarship_repo_mock, mock_transaction_manager):
-    return ScholarshipService(repository=scholarship_repo_mock, transaction_manager=mock_transaction_manager)
+    return ScholarshipService(
+        repository=scholarship_repo_mock, transaction_manager=mock_transaction_manager
+    )
+
 
 @pytest.mark.asyncio
 async def test_publish_twice_fails(scholarship_service, scholarship_repo_mock):
@@ -21,6 +28,7 @@ async def test_publish_twice_fails(scholarship_service, scholarship_repo_mock):
 
     with pytest.raises(BusinessRuleViolation, match="already published"):
         await scholarship_service.publish(sch_id)
+
 
 @pytest.mark.asyncio
 async def test_unpublish_twice_fails(scholarship_service, scholarship_repo_mock):

@@ -1,9 +1,11 @@
-from typing import Protocol, TypeVar, Any, Sequence, Optional
+from collections.abc import Sequence
+from typing import Any, Protocol, TypeVar
 from uuid import UUID
 
 ModelType = TypeVar("ModelType")
 CreateSchemaType = TypeVar("CreateSchemaType")
 UpdateSchemaType = TypeVar("UpdateSchemaType")
+
 
 class IService(Protocol[ModelType, CreateSchemaType, UpdateSchemaType]):
     """
@@ -23,7 +25,7 @@ class IService(Protocol[ModelType, CreateSchemaType, UpdateSchemaType]):
         """
         ...
 
-    async def get_by_id(self, id: UUID) -> Optional[ModelType]:
+    async def get_by_id(self, id: UUID) -> ModelType | None:
         """
         Retrieve a single entity by its unique identifier.
 
@@ -35,7 +37,7 @@ class IService(Protocol[ModelType, CreateSchemaType, UpdateSchemaType]):
         """
         ...
 
-    async def update(self, id: UUID, obj_in: UpdateSchemaType) -> Optional[ModelType]:
+    async def update(self, id: UUID, obj_in: UpdateSchemaType) -> ModelType | None:
         """
         Update an existing entity with the provided data.
 
