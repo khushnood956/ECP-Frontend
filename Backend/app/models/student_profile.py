@@ -1,31 +1,39 @@
-from sqlalchemy import Column, String, Date, Text, ForeignKey, Enum, Float, Numeric
+from sqlalchemy import Column, Date, Enum, Float, ForeignKey, Numeric, String, Text
 from sqlalchemy.orm import relationship
-from app.db.base import Base, UUIDPrimaryKeyMixin, TimestampMixin
-from app.models.enums import Gender, DegreeLevel
+
+from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.enums import DegreeLevel, Gender
+
 
 class StudentProfile(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """
     Student profile linked 1-to-1 with a User.
     """
+
     __tablename__ = "student_profiles"
 
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
-    
+    user_id = Column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
+
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
     gender = Column(Enum(Gender), nullable=True)
     date_of_birth = Column(Date, nullable=True)
-    
+
     country = Column(String(100), index=True, nullable=True)
     city = Column(String(100), nullable=True)
     phone = Column(String(50), nullable=True)
-    
+
     highest_qualification = Column(String(255), nullable=True)
     cgpa_or_percentage = Column(Float, nullable=True)
     preferred_degree = Column(Enum(DegreeLevel), nullable=True)
     preferred_country = Column(String(100), nullable=True)
     budget = Column(Numeric(12, 2), nullable=True)
-    
+
     bio = Column(Text, nullable=True)
     profile_picture_url = Column(String(500), nullable=True)
 

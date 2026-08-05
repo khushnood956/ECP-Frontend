@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class ApplicationException(Exception):
@@ -6,12 +6,13 @@ class ApplicationException(Exception):
     Base exception for all custom application errors.
     All application-specific exceptions should inherit from this.
     """
+
     def __init__(
         self,
         message: str,
         status_code: int = 500,
         error_code: str = "INTERNAL_SERVER_ERROR",
-        details: Optional[Dict[str, Any]] = None
+        details: dict[str, Any] | None = None,
     ):
         self.message = message
         self.status_code = status_code

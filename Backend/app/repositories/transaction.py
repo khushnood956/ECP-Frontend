@@ -1,11 +1,14 @@
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from sqlalchemy.exc import SQLAlchemyError
-from app.repositories.exceptions import RepositoryError
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.logging.logger import get_logger
+from app.repositories.exceptions import RepositoryError
 
 logger = get_logger(__name__)
+
 
 class TransactionManager:
     def __init__(self, session: AsyncSession):
@@ -24,5 +27,7 @@ class TransactionManager:
             logger.error(f"Transaction rollback due to exception: {e}")
             await self.session.rollback()
             if isinstance(e, SQLAlchemyError):
-                raise RepositoryError("Database transaction error", details={"error": str(e)}) from e
+                raise RepositoryError(
+                    "Database transaction error", details={"error": str(e)}
+                ) from e
             raise
