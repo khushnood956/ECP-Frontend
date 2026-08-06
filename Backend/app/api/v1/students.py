@@ -1,15 +1,17 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Query, HTTPException
 
 from app.common.schemas.responses import SuccessResponse
 from app.common.utils.responses import success_response
 from app.dependencies.services import get_student_service
+from app.dependencies.auth import get_current_active_user
+from app.models.user import User
 from app.schemas.student import StudentCreate, StudentResponse, StudentUpdate
 from app.services.student_service import StudentService
+from app.repositories.params import PaginationParams
 
 router = APIRouter()
-
 
 @router.post(
     "",
@@ -18,7 +20,9 @@ router = APIRouter()
     summary="Create a student profile",
 )
 async def create_student(
-    student_in: StudentCreate, service: StudentService = Depends(get_student_service)
+    student_in: StudentCreate, 
+    current_user: User = Depends(get_current_active_user),
+    service: StudentService = Depends(get_student_service)
 ):
     student = await service.create(student_in)
     return success_response(
@@ -33,8 +37,16 @@ async def create_student(
     response_model=SuccessResponse[StudentResponse],
     summary="Get a student profile by ID",
 )
-async def get_student(id: UUID, service: StudentService = Depends(get_student_service)):
-    student = await service.get(id)
+async def get_student(
+    id: UUID, 
+    current_user: User = Depends(get_current_active_user),
+    service: StudentService = Depends(get_student_service)
+):
+    student = await service.get_by_id(id)
+    if not student:
+        from app.services.exceptions import EntityNotFound
+        raise EntityNotFound(f"Student profile with id {id} not found.")
+        
     return success_response(
         data=StudentResponse.model_validate(student),
         message="Student retrieved successfully",
@@ -47,12 +59,15 @@ async def get_student(id: UUID, service: StudentService = Depends(get_student_se
     summary="Get all student profiles",
 )
 async def get_students(
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    current_user: User = Depends(get_current_active_user),
     service: StudentService = Depends(get_student_service),
 ):
-    students, total = await service.get_all(skip=skip, limit=limit)
-    data = [StudentResponse.model_validate(s) for s in students]
+    # Using existing repository architecture for pagination
+    pagination = PaginationParams(page=page, page_size=page_size)
+    paginated_result = await service.repository.list_paginated(pagination=pagination)
+    data = [StudentResponse.model_validate(s) for s in paginated_result.items]
     return success_response(data=data, message="Students retrieved successfully")
 
 
@@ -64,6 +79,7 @@ async def get_students(
 async def update_student(
     id: UUID,
     student_in: StudentUpdate,
+    current_user: User = Depends(get_current_active_user),
     service: StudentService = Depends(get_student_service),
 ):
     student = await service.update(id, student_in)
@@ -74,29 +90,16 @@ async def update_student(
 
 
 @router.delete(
-    "/{id}", response_model=SuccessResponse, summary="Delete a student profile"
+    "/{id}", 
+    response_model=None, 
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a student profile"
 )
 async def delete_student(
-    id: UUID, service: StudentService = Depends(get_student_service)
+    id: UUID, 
+    current_user: User = Depends(get_current_active_user),
+    service: StudentService = Depends(get_student_service)
 ):
+    # BaseService.delete will raise EntityNotFound if not exists
     await service.delete(id)
-    return success_response(message="Student deleted successfully")
-
-
-@router.get(
-    "/user/{user_id}",
-    response_model=SuccessResponse[StudentResponse],
-    summary="Get a student profile by User ID",
-)
-async def get_student_by_user_id(
-    user_id: UUID, service: StudentService = Depends(get_student_service)
-):
-    student = await service.get_by_user_id(user_id)
-    if not student:
-        from app.services.exceptions import EntityNotFound
-
-        raise EntityNotFound(f"Student profile for user {user_id} not found.")
-    return success_response(
-        data=StudentResponse.model_validate(student),
-        message="Student retrieved successfully",
-    )
+    return None
