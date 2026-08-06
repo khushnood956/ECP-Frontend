@@ -84,3 +84,13 @@ class AgencyService(BaseService[Agency, Any, Any]):
 
             update_data = {"verification_status": AgencyVerificationStatus.REJECTED}
             return await self.repository.update(id, update_data)  # type: ignore
+
+    async def create(self, obj_in: Any) -> Any:
+        async with self.transaction_manager.transaction():
+            data = obj_in.model_dump() if hasattr(obj_in, "model_dump") else obj_in
+            existing = await self.repository.get_by_registration_number(data.get("registration_number"))
+            if existing:
+                from app.services.exceptions import BusinessRuleViolation
+                raise BusinessRuleViolation("Agency with this registration number already exists")
+            model_instance = self._to_model(obj_in)
+            return await self.repository.create(model_instance)

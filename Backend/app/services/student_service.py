@@ -72,3 +72,20 @@ class StudentService(BaseService[StudentProfile, Any, Any]):
                 else obj_in
             )
             return await self.repository.update(profile.id, update_data)  # type: ignore
+
+    async def create(self, obj_in: Any) -> Any:
+        async with self.transaction_manager.transaction():
+            data = obj_in.model_dump() if hasattr(obj_in, "model_dump") else obj_in
+            user_id = data.get("user_id")
+            
+            if not user_id:
+                from app.services.exceptions import EntityNotFound
+                raise EntityNotFound("Related user not found")
+                
+            existing = await self.repository.get_by_user_id(user_id)
+            if existing:
+                from app.services.exceptions import BusinessRuleViolation
+                raise BusinessRuleViolation("Student profile already exists for this user")
+            
+            model_instance = self._to_model(obj_in)
+            return await self.repository.create(model_instance)

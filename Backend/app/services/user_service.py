@@ -92,3 +92,15 @@ class UserService(BaseService[User, Any, Any]):
                 user.is_active, False, f"User {id} is already inactive."
             )
             return await self.repository.update(id, {"is_active": False})  # type: ignore
+
+    async def create(self, obj_in: Any) -> User:
+        async with self.transaction_manager.transaction():
+            data = obj_in.model_dump() if hasattr(obj_in, "model_dump") else obj_in
+            if await self.email_exists(data.get("email")):
+                from app.services.exceptions import BusinessRuleViolation
+                raise BusinessRuleViolation("Email already exists")
+            if data.get("role") not in ["student", "agency", "admin"]:
+                from app.services.exceptions import BusinessRuleViolation
+                raise BusinessRuleViolation("Invalid role")
+            model_instance = self._to_model(obj_in)
+            return await self.repository.create(model_instance)

@@ -59,3 +59,20 @@ async def test_duplicate_status_transition(lead_service, lead_repo_mock):
 
     with pytest.raises(BusinessRuleViolation, match="already in status"):
         await lead_service.update_status(lead_id, LeadStatus.CONTACTED)
+
+@pytest.mark.asyncio
+async def test_lead_creation(lead_service, lead_repo_mock):
+    lead_data = {"student_id": uuid.uuid4(), "scholarship_id": uuid.uuid4()}
+    lead_repo_mock.list.return_value = []
+    lead_repo_mock.create.return_value = Lead(id=uuid.uuid4())
+    
+    result = await lead_service.create(lead_data)
+    assert result is not None
+
+@pytest.mark.asyncio
+async def test_duplicate_lead_detection(lead_service, lead_repo_mock):
+    lead_data = {"student_id": uuid.uuid4(), "scholarship_id": uuid.uuid4()}
+    lead_repo_mock.list.return_value = [Lead(id=uuid.uuid4())]
+    
+    with pytest.raises(BusinessRuleViolation, match="Lead already exists"):
+        await lead_service.create(lead_data)
