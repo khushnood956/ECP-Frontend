@@ -43,3 +43,20 @@ async def test_suspend_agency_twice_fails(agency_service, agency_repo_mock):
 
     with pytest.raises(BusinessRuleViolation, match="already suspended"):
         await agency_service.suspend_agency(agency_id)
+
+@pytest.mark.asyncio
+async def test_agency_creation(agency_service, agency_repo_mock):
+    agency_data = {"registration_number": "123"}
+    agency_repo_mock.get_by_registration_number.return_value = None
+    agency_repo_mock.create.return_value = Agency(id=uuid.uuid4())
+    
+    result = await agency_service.create(agency_data)
+    assert result is not None
+
+@pytest.mark.asyncio
+async def test_duplicate_agency_handling(agency_service, agency_repo_mock):
+    agency_data = {"registration_number": "123"}
+    agency_repo_mock.get_by_registration_number.return_value = Agency(id=uuid.uuid4())
+    
+    with pytest.raises(BusinessRuleViolation, match="already exists"):
+        await agency_service.create(agency_data)

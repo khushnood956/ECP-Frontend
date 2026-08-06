@@ -18,8 +18,8 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseModel):
+    email: EmailStr | None = None
     is_active: bool | None = None
-    is_verified: bool | None = None
 
 
 class UserResponse(UserBase):
@@ -30,3 +30,10 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True
+
+class PaginatedUserResponse(BaseModel):
+    items: list[UserResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

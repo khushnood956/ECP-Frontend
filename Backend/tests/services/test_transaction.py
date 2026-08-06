@@ -47,3 +47,5 @@ async def test_transaction_rollback_on_exception():
 
     context_manager_mock.__aenter__.assert_called_once()
     context_manager_mock.__aexit__.assert_called_once()
+
+

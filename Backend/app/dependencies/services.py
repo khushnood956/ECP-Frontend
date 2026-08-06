@@ -68,3 +68,7 @@ def get_lead_service(
         agency_repository=agency_repository,
         transaction_manager=transaction_manager,
     )
+
+from app.services.auth_service import AuthService
+async def get_auth_service(user_service=Depends(get_user_service)) -> AuthService:
+    return AuthService(user_service=user_service)

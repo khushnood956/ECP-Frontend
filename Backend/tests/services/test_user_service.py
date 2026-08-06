@@ -50,3 +50,29 @@ async def test_deactivate_twice_fails(user_service, user_repo_mock):
 
     with pytest.raises(BusinessRuleViolation, match="already inactive"):
         await user_service.deactivate(user_id)
+
+
+@pytest.mark.asyncio
+async def test_create_user_success(user_service, user_repo_mock):
+    user_data = {"email": "test@test.com", "role": "student"}
+    user_repo_mock.get_by_email.return_value = None
+    user_repo_mock.create.return_value = User(id=uuid.uuid4(), email="test@test.com")
+    
+    result = await user_service.create(user_data)
+    assert result.email == "test@test.com"
+
+@pytest.mark.asyncio
+async def test_duplicate_email_rejected(user_service, user_repo_mock):
+    user_data = {"email": "test@test.com", "role": "student"}
+    user_repo_mock.get_by_email.return_value = User(id=uuid.uuid4(), email="test@test.com")
+    
+    with pytest.raises(BusinessRuleViolation, match="Email already exists"):
+        await user_service.create(user_data)
+
+@pytest.mark.asyncio
+async def test_invalid_role_rejected(user_service, user_repo_mock):
+    user_data = {"email": "new@test.com", "role": "invalid"}
+    user_repo_mock.get_by_email.return_value = None
+    
+    with pytest.raises(BusinessRuleViolation, match="Invalid role"):
+        await user_service.create(user_data)

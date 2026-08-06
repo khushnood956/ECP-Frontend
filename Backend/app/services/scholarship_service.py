@@ -38,8 +38,10 @@ class ScholarshipService(BaseService[Scholarship, Any, Any]):
         data = (
             obj_in.model_dump(exclude_unset=True)
             if hasattr(obj_in, "model_dump")
-            else obj_in
+            else obj_in.copy() if isinstance(obj_in, dict) else dict(obj_in)
         )
+        if "agency_id" in data:
+            data.pop("agency_id")
         return Scholarship(**data)
 
     async def publish(self, id: UUID) -> Scholarship:
@@ -81,3 +83,20 @@ class ScholarshipService(BaseService[Scholarship, Any, Any]):
         Retrieve a paginated list of all active scholarships.
         """
         return await self.repository.get_active(pagination)
+
+    async def create(self, obj_in: Any) -> Any:
+        async with self.transaction_manager.transaction():
+            data = obj_in.model_dump() if hasattr(obj_in, "model_dump") else obj_in
+            import datetime
+            deadline = data.get("deadline")
+            if deadline and deadline < datetime.datetime.now(datetime.timezone.utc):
+                from app.services.exceptions import BusinessRuleViolation
+                raise BusinessRuleViolation("Scholarship deadline cannot be in the past")
+            
+            agency_id = data.get("agency_id")
+            if not agency_id:
+                from app.services.exceptions import BusinessRuleViolation
+                raise BusinessRuleViolation("Invalid agency")
+                
+            model_instance = self._to_model(obj_in)
+            return await self.repository.create(model_instance)

@@ -45,7 +45,7 @@ class BaseRepository(IRepository[ModelType], Generic[ModelType]):
 
     async def get_by_id(self, id: UUID) -> ModelType | None:
         try:
-            stmt = select(self.model).where(self.model.id == id)
+            stmt = select(self.model).where(self.model.id == str(id))
             result = await self.session.execute(stmt)
             return result.scalar_one_or_none()
         except SQLAlchemyError as e:
@@ -58,7 +58,7 @@ class BaseRepository(IRepository[ModelType], Generic[ModelType]):
             return await self.get_by_id(id)
 
         try:
-            stmt = sa_update(self.model).where(self.model.id == id).values(**obj_in)
+            stmt = sa_update(self.model).where(self.model.id == str(id)).values(**obj_in)
             await self.session.execute(stmt)
             await self.session.flush()
             return await self.get_by_id(id)
@@ -73,7 +73,7 @@ class BaseRepository(IRepository[ModelType], Generic[ModelType]):
 
     async def delete(self, id: UUID) -> bool:
         try:
-            stmt = sa_delete(self.model).where(self.model.id == id)
+            stmt = sa_delete(self.model).where(self.model.id == str(id))
             result = await self.session.execute(stmt)
             await self.session.flush()
             return result.rowcount > 0
@@ -213,7 +213,7 @@ class BaseRepository(IRepository[ModelType], Generic[ModelType]):
                     continue
                 stmt = (
                     sa_update(self.model)
-                    .where(self.model.id == id_val)
+                    .where(self.model.id == str(id_val))
                     .values(**obj_in)
                 )
                 res = await self.session.execute(stmt)
@@ -233,7 +233,8 @@ class BaseRepository(IRepository[ModelType], Generic[ModelType]):
         if not ids:
             return 0
         try:
-            stmt = sa_delete(self.model).where(self.model.id.in_(ids))
+            str_ids = [str(id) for id in ids]
+            stmt = sa_delete(self.model).where(self.model.id.in_(str_ids))
             result = await self.session.execute(stmt)
             await self.session.flush()
             return result.rowcount

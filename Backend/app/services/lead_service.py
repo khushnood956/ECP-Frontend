@@ -106,3 +106,17 @@ class LeadService(BaseService[Lead, Any, Any]):
         Retrieve all leads associated with a specific student.
         """
         return await self.repository.get_by_student_id(student_id)
+
+    async def create(self, obj_in: Any) -> Any:
+        async with self.transaction_manager.transaction():
+            data = obj_in.model_dump() if hasattr(obj_in, "model_dump") else obj_in
+            student_id = data.get("student_id")
+            scholarship_id = data.get("scholarship_id")
+            # duplicate lead detection
+            existing = await self.repository.list(student_id=student_id, scholarship_id=scholarship_id)
+            if existing:
+                from app.services.exceptions import BusinessRuleViolation
+                raise BusinessRuleViolation("Lead already exists for this student and scholarship")
+                
+            model_instance = self._to_model(obj_in)
+            return await self.repository.create(model_instance)
