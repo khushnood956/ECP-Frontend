@@ -43,6 +43,10 @@ class Agency(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     # Relationships
     user = relationship("User", back_populates="agency_profile")
     leads = relationship("Lead", back_populates="agency", cascade="all, delete-orphan")
+    scholarships = relationship(
+        "Scholarship", back_populates="agency", cascade="all, delete-orphan"
+    )
+
 
     def __repr__(self) -> str:
         return f"<Agency {self.agency_name} (Status: {self.verification_status.value})>"

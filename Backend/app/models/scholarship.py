@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Date, Enum, Numeric, String, Text
+from sqlalchemy import Boolean, Column, Date, Enum, Numeric, String, Text, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -29,10 +29,18 @@ class Scholarship(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     is_active = Column(Boolean, default=True, nullable=False)
 
+    agency_id = Column(
+        String(36),
+        ForeignKey("agencies.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     # Relationships
+    agency = relationship("Agency", back_populates="scholarships")
     leads = relationship(
         "Lead", back_populates="scholarship", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
         return f"<Scholarship {self.title} ({self.country})>"
+

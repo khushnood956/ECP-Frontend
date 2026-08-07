@@ -20,7 +20,8 @@ class AgencyBase(BaseModel):
 
 
 class AgencyCreate(AgencyBase):
-    user_id: UUID
+    pass
+
 
 
 class AgencyUpdate(BaseModel):

@@ -85,12 +85,46 @@ class AgencyService(BaseService[Agency, Any, Any]):
             update_data = {"verification_status": AgencyVerificationStatus.REJECTED}
             return await self.repository.update(id, update_data)  # type: ignore
 
-    async def create(self, obj_in: Any) -> Any:
+    async def create(self, obj_in: Any, user: Any) -> Agency:
+        from app.models.enums import UserRole
+        if user.role != UserRole.AGENCY:
+            from app.services.exceptions import PermissionDenied
+            raise PermissionDenied("Only agency users can create agency profiles.")
+
+        existing_user_agency = await self.repository.get_by_user_id(user.id)
+        if existing_user_agency:
+            from app.services.exceptions import EntityAlreadyExists
+            raise EntityAlreadyExists("This user already has an agency profile.")
+
         async with self.transaction_manager.transaction():
-            data = obj_in.model_dump() if hasattr(obj_in, "model_dump") else obj_in
-            existing = await self.repository.get_by_registration_number(data.get("registration_number"))
-            if existing:
-                from app.services.exceptions import BusinessRuleViolation
-                raise BusinessRuleViolation("Agency with this registration number already exists")
-            model_instance = self._to_model(obj_in)
+            data = obj_in.model_dump() if hasattr(obj_in, "model_dump") else dict(obj_in)
+            reg_num = data.get("registration_number")
+            if reg_num:
+                existing = await self.repository.get_by_registration_number(reg_num)
+                if existing:
+                    from app.services.exceptions import EntityAlreadyExists
+                    raise EntityAlreadyExists(f"Agency with registration number '{reg_num}' already exists.")
+            data["user_id"] = str(user.id)
+            model_instance = self._to_model(data)
             return await self.repository.create(model_instance)
+
+
+    async def update(self, id: UUID, obj_in: Any) -> Agency | None:
+        async with self.transaction_manager.transaction():
+            agency = await self._require_entity(id)
+
+            update_data = (
+                obj_in.model_dump(exclude_unset=True)
+                if hasattr(obj_in, "model_dump")
+                else dict(obj_in)
+            )
+
+            new_reg_num = update_data.get("registration_number")
+            if new_reg_num and new_reg_num != agency.registration_number:
+                existing = await self.repository.get_by_registration_number(new_reg_num)
+                if existing and existing.id != id:
+                    from app.services.exceptions import EntityAlreadyExists
+                    raise EntityAlreadyExists(f"Agency with registration number '{new_reg_num}' already exists.")
+
+            return await self.repository.update(id, update_data)
+
