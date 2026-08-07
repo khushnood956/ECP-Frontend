@@ -1,36 +1,37 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Query, status
 
 from app.common.schemas.responses import SuccessResponse
 from app.common.utils.responses import success_response
+from app.dependencies.auth import get_current_active_user
 from app.dependencies.services import get_lead_service
 from app.models.enums import LeadStatus
-from app.schemas.lead import LeadCreate, LeadResponse, LeadUpdate
+from app.models.user import User
+from app.schemas.lead import (
+    LeadCreate,
+    LeadResponse,
+    LeadUpdate,
+    LeadPatchRequest,
+    LeadStatusUpdate,
+)
 from app.services.lead_service import LeadService
 
 router = APIRouter()
-
-
-class LeadStatusUpdate(BaseModel):
-    status: LeadStatus
-
-
-class LeadFollowUpUpdate(BaseModel):
-    notes: str
 
 
 @router.post(
     "",
     response_model=SuccessResponse[LeadResponse],
     status_code=status.HTTP_201_CREATED,
-    summary="Create a lead",
+    summary="Create a lead (apply for scholarship)",
 )
 async def create_lead(
-    lead_in: LeadCreate, service: LeadService = Depends(get_lead_service)
+    lead_in: LeadCreate,
+    current_user: User = Depends(get_current_active_user),
+    service: LeadService = Depends(get_lead_service),
 ):
-    lead = await service.create(lead_in)
+    lead = await service.create(lead_in, current_user)
     return success_response(
         data=LeadResponse.model_validate(lead),
         message="Lead created successfully",
@@ -39,43 +40,76 @@ async def create_lead(
 
 
 @router.get(
-    "/{id}", response_model=SuccessResponse[LeadResponse], summary="Get a lead by ID"
+    "/{id}",
+    response_model=SuccessResponse[LeadResponse],
+    summary="Get a lead by ID",
 )
-async def get_lead(id: UUID, service: LeadService = Depends(get_lead_service)):
-    lead = await service.get(id)
+async def get_lead(
+    id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    service: LeadService = Depends(get_lead_service),
+):
+    lead = await service.get_by_id(id, current_user)
+    if not lead:
+        from app.services.exceptions import EntityNotFound
+        raise EntityNotFound(f"Lead with id {id} not found.")
     return success_response(
-        data=LeadResponse.model_validate(lead), message="Lead retrieved successfully"
+        data=LeadResponse.model_validate(lead),
+        message="Lead retrieved successfully",
     )
 
 
 @router.get(
-    "", response_model=SuccessResponse[list[LeadResponse]], summary="Get all leads"
+    "",
+    response_model=SuccessResponse[list[LeadResponse]],
+    summary="Get all leads (scoped by role)",
 )
 async def get_leads(
-    skip: int = 0, limit: int = 100, service: LeadService = Depends(get_lead_service)
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    current_user: User = Depends(get_current_active_user),
+    service: LeadService = Depends(get_lead_service),
 ):
-    leads, total = await service.get_all(skip=skip, limit=limit)
-    data = [LeadResponse.model_validate(l) for l in leads]
+    from app.repositories.params import PaginationParams
+    pagination = PaginationParams(page=page, page_size=page_size)
+    paginated_result = await service.list_leads(current_user, pagination)
+    data = [LeadResponse.model_validate(l) for l in paginated_result.items]
     return success_response(data=data, message="Leads retrieved successfully")
 
 
 @router.patch(
-    "/{id}", response_model=SuccessResponse[LeadResponse], summary="Update a lead"
+    "/{id}",
+    response_model=SuccessResponse[LeadResponse],
+    summary="Update a lead",
 )
 async def update_lead(
-    id: UUID, lead_in: LeadUpdate, service: LeadService = Depends(get_lead_service)
+    id: UUID,
+    lead_in: LeadPatchRequest,
+    current_user: User = Depends(get_current_active_user),
+    service: LeadService = Depends(get_lead_service),
 ):
-    lead = await service.update(id, lead_in)
+    lead = await service.update(id, lead_in, current_user)
     return success_response(
-        data=LeadResponse.model_validate(lead), message="Lead updated successfully"
+        data=LeadResponse.model_validate(lead),
+        message="Lead updated successfully",
     )
 
 
-@router.delete("/{id}", response_model=SuccessResponse, summary="Delete a lead")
-async def delete_lead(id: UUID, service: LeadService = Depends(get_lead_service)):
-    await service.delete(id)
+@router.delete(
+    "/{id}",
+    response_model=SuccessResponse,
+    summary="Withdraw or delete a lead",
+)
+async def delete_lead(
+    id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    service: LeadService = Depends(get_lead_service),
+):
+    await service.delete(id, current_user)
     return success_response(message="Lead deleted successfully")
 
+
+# --- Legacy endpoints preserved for backward compatibility ---
 
 @router.post(
     "/{id}/assign-agency",
@@ -83,11 +117,15 @@ async def delete_lead(id: UUID, service: LeadService = Depends(get_lead_service)
     summary="Assign an agency to a lead",
 )
 async def assign_agency(
-    id: UUID, agency_id: UUID, service: LeadService = Depends(get_lead_service)
+    id: UUID,
+    agency_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    service: LeadService = Depends(get_lead_service),
 ):
-    lead = await service.assign_to_agency(id, agency_id)
+    lead = await service.assign_agency(id, agency_id)
     return success_response(
-        data=LeadResponse.model_validate(lead), message="Agency assigned successfully"
+        data=LeadResponse.model_validate(lead),
+        message="Agency assigned successfully",
     )
 
 
@@ -99,29 +137,21 @@ async def assign_agency(
 async def update_lead_status(
     id: UUID,
     status_update: LeadStatusUpdate,
+    current_user: User = Depends(get_current_active_user),
     service: LeadService = Depends(get_lead_service),
 ):
-    lead = await service.update_status(id, status_update.status)
+    # Mapping request string representation if needed
+    status_map_rev = {
+        "submitted": LeadStatus.NEW,
+        "under_review": LeadStatus.CONTACTED,
+        "accepted": LeadStatus.WON,
+        "rejected": LeadStatus.LOST
+    }
+    target_status = status_map_rev.get(status_update.status, LeadStatus.NEW)
+    lead = await service.update_status(id, target_status)
     return success_response(
         data=LeadResponse.model_validate(lead),
         message="Lead status updated successfully",
-    )
-
-
-@router.post(
-    "/{id}/follow-up",
-    response_model=SuccessResponse[LeadResponse],
-    summary="Add follow-up notes to a lead",
-)
-async def follow_up_lead(
-    id: UUID,
-    follow_up: LeadFollowUpUpdate,
-    service: LeadService = Depends(get_lead_service),
-):
-    lead = await service.record_follow_up(id, follow_up.notes)
-    return success_response(
-        data=LeadResponse.model_validate(lead),
-        message="Follow-up recorded successfully",
     )
 
 
@@ -131,8 +161,10 @@ async def follow_up_lead(
     summary="Get leads by student ID",
 )
 async def get_leads_by_student(
-    student_id: UUID, service: LeadService = Depends(get_lead_service)
+    student_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    service: LeadService = Depends(get_lead_service),
 ):
-    leads = await service.get_by_student(student_id)
+    leads = await service.leads_by_student(student_id)
     data = [LeadResponse.model_validate(l) for l in leads]
     return success_response(data=data, message="Leads retrieved successfully")

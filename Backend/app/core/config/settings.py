@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
 
     # CORS
-    BACKEND_CORS_ORIGINS: list[AnyHttpUrl] = []
+    BACKEND_CORS_ORIGINS: list[AnyHttpUrl] = [AnyHttpUrl("http://localhost:5174"), AnyHttpUrl("http://localhost:8000")]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     def assemble_cors_origins(cls, v: str | list[str]) -> list[str] | str:
