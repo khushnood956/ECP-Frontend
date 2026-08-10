@@ -1,22 +1,29 @@
-import pytest
-from httpx import AsyncClient, ASGITransport
-from main import app
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+
 from app.dependencies.auth import get_current_active_user
+from app.models.enums import UserRole
 from app.models.user import User
-from app.services.exceptions import EntityNotFound, BusinessRuleViolation
+from app.services.exceptions import BusinessRuleViolation, EntityNotFound
+from main import app
 
+TEST_USER_ID = str(uuid4())
 def override_get_current_active_user():
-    return User(id=str(uuid4()), email="test@test.com", is_active=True, role="student")
+    return User(id=TEST_USER_ID, email="test@test.com", is_active=True, role=UserRole.STUDENT)
 
-# We apply the override globally for these tests
-app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+@pytest.fixture(autouse=True)
+def setup_overrides():
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+    yield
+    app.dependency_overrides.clear()
 
 class MockStudent:
     def __init__(self):
         self.id = uuid4()
-        self.user_id = uuid4()
+        self.user_id = TEST_USER_ID
         self.first_name = "Alice"
         self.last_name = "Smith"
         self.created_at = "2023-01-01T00:00:00Z"
@@ -28,9 +35,9 @@ async def test_create_student():
         mock_create.return_value = MockStudent()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post("/api/v1/student-profiles", json={
+                "user_id": TEST_USER_ID,
                 "first_name": "Alice",
-                "last_name": "Smith",
-                "user_id": str(uuid4())
+                "last_name": "Smith"
             })
         assert response.status_code == 201
         assert response.json()["data"]["first_name"] == "Alice"
@@ -38,12 +45,12 @@ async def test_create_student():
 @pytest.mark.asyncio
 async def test_duplicate_student():
     with patch('app.services.student_service.StudentService.create', new_callable=AsyncMock) as mock_create:
-        mock_create.side_effect = BusinessRuleViolation("Student profile already exists for this user")
+        mock_create.side_effect = BusinessRuleViolation("Student profile already exists")
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post("/api/v1/student-profiles", json={
+                "user_id": TEST_USER_ID,
                 "first_name": "Alice",
-                "last_name": "Smith",
-                "user_id": str(uuid4())
+                "last_name": "Smith"
             })
         assert response.status_code == 400
         assert "already exists" in str(response.json())
@@ -54,9 +61,9 @@ async def test_invalid_user_create():
         mock_create.side_effect = EntityNotFound("Related user not found")
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post("/api/v1/student-profiles", json={
+                "user_id": TEST_USER_ID,
                 "first_name": "Alice",
-                "last_name": "Smith",
-                "user_id": str(uuid4())
+                "last_name": "Smith"
             })
         assert response.status_code == 404
 
@@ -70,10 +77,19 @@ async def test_list_students():
             self.page_size = 10
             self.total_pages = 1
             
+    def get_admin_user():
+        return User(id=str(uuid4()), email="admin@test.com", is_active=True, role=UserRole.ADMIN)
+
     with patch('app.repositories.base.BaseRepository.list_paginated', new_callable=AsyncMock) as mock_list:
         mock_list.return_value = MockResult()
+        
+        app.dependency_overrides[get_current_active_user] = get_admin_user
+        
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/student-profiles")
+            
+        app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+        
         assert response.status_code == 200
         assert isinstance(response.json()["data"], list)
 
@@ -89,8 +105,10 @@ async def test_get_student_by_id():
 @pytest.mark.asyncio
 async def test_get_invalid_student_id():
     student_id = uuid4()
-    with patch('app.services.base.BaseService.get_by_id', new_callable=AsyncMock) as mock_get:
+    with patch('app.services.base.BaseService.get_by_id', new_callable=AsyncMock) as mock_get, \
+         patch('app.repositories.student_profile_repository.StudentProfileRepository.get_by_user_id', new_callable=AsyncMock) as mock_get_by_user:
         mock_get.return_value = None
+        mock_get_by_user.return_value = None
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/student-profiles/{student_id}")
         assert response.status_code == 404
@@ -98,7 +116,9 @@ async def test_get_invalid_student_id():
 @pytest.mark.asyncio
 async def test_update_student():
     student_id = uuid4()
-    with patch('app.services.base.BaseService.update', new_callable=AsyncMock) as mock_update:
+    with patch('app.services.student_service.StudentService.update', new_callable=AsyncMock) as mock_update, \
+         patch('app.services.base.BaseService.get_by_id', new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = MockStudent()
         mock_update.return_value = MockStudent()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.patch(f"/api/v1/student-profiles/{student_id}", json={
@@ -109,7 +129,9 @@ async def test_update_student():
 @pytest.mark.asyncio
 async def test_delete_student():
     student_id = uuid4()
-    with patch('app.services.base.BaseService.delete', new_callable=AsyncMock) as mock_delete:
+    with patch('app.services.student_service.StudentService.delete', new_callable=AsyncMock) as mock_delete, \
+         patch('app.services.base.BaseService.get_by_id', new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = MockStudent()
         mock_delete.return_value = True
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.delete(f"/api/v1/student-profiles/{student_id}")
@@ -118,7 +140,11 @@ async def test_delete_student():
 @pytest.mark.asyncio
 async def test_delete_invalid_student():
     student_id = uuid4()
-    with patch('app.services.base.BaseService.delete', new_callable=AsyncMock) as mock_delete:
+    with patch('app.services.student_service.StudentService.delete', new_callable=AsyncMock) as mock_delete, \
+         patch('app.services.base.BaseService.get_by_id', new_callable=AsyncMock) as mock_get, \
+         patch('app.repositories.student_profile_repository.StudentProfileRepository.get_by_user_id', new_callable=AsyncMock) as mock_get_by_user:
+        mock_get.return_value = None
+        mock_get_by_user.return_value = None
         mock_delete.side_effect = EntityNotFound("Not found")
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.delete(f"/api/v1/student-profiles/{student_id}")
@@ -126,10 +152,7 @@ async def test_delete_invalid_student():
 
 @pytest.mark.asyncio
 async def test_unauthorized_access():
-    app.dependency_overrides.clear()
+    app.dependency_overrides.pop(get_current_active_user, None)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/api/v1/student-profiles")
     assert response.status_code == 401
-    
-    # restore override for other tests if needed
-    app.dependency_overrides[get_current_active_user] = override_get_current_active_user

@@ -4,7 +4,7 @@ from app.core.exceptions.base import ApplicationException
 
 
 class ValidationException(ApplicationException):
-    def __init__(self, message: str = "Validation failed", details: dict = None):
+    def __init__(self, message: str = "Validation failed", details: dict | None = None):
         super().__init__(
             message=message,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -14,7 +14,7 @@ class ValidationException(ApplicationException):
 
 
 class NotFoundException(ApplicationException):
-    def __init__(self, message: str = "Resource not found", details: dict = None):
+    def __init__(self, message: str = "Resource not found", details: dict | None = None):
         super().__init__(
             message=message,
             status_code=status.HTTP_404_NOT_FOUND,
@@ -24,7 +24,7 @@ class NotFoundException(ApplicationException):
 
 
 class ConflictException(ApplicationException):
-    def __init__(self, message: str = "Resource conflict", details: dict = None):
+    def __init__(self, message: str = "Resource conflict", details: dict | None = None):
         super().__init__(
             message=message,
             status_code=status.HTTP_409_CONFLICT,
@@ -34,7 +34,7 @@ class ConflictException(ApplicationException):
 
 
 class UnauthorizedException(ApplicationException):
-    def __init__(self, message: str = "Unauthorized access", details: dict = None):
+    def __init__(self, message: str = "Unauthorized access", details: dict | None = None):
         super().__init__(
             message=message,
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -44,7 +44,7 @@ class UnauthorizedException(ApplicationException):
 
 
 class ForbiddenException(ApplicationException):
-    def __init__(self, message: str = "Access forbidden", details: dict = None):
+    def __init__(self, message: str = "Access forbidden", details: dict | None = None):
         super().__init__(
             message=message,
             status_code=status.HTTP_403_FORBIDDEN,
@@ -54,7 +54,7 @@ class ForbiddenException(ApplicationException):
 
 
 class BusinessRuleException(ApplicationException):
-    def __init__(self, message: str = "Business rule violation", details: dict = None):
+    def __init__(self, message: str = "Business rule violation", details: dict | None = None):
         super().__init__(
             message=message,
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -64,7 +64,7 @@ class BusinessRuleException(ApplicationException):
 
 
 class ServiceUnavailableException(ApplicationException):
-    def __init__(self, message: str = "Service unavailable", details: dict = None):
+    def __init__(self, message: str = "Service unavailable", details: dict | None = None):
         super().__init__(
             message=message,
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -74,7 +74,7 @@ class ServiceUnavailableException(ApplicationException):
 
 
 class InternalServerException(ApplicationException):
-    def __init__(self, message: str = "Internal server error", details: dict = None):
+    def __init__(self, message: str = "Internal server error", details: dict | None = None):
         super().__init__(
             message=message,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

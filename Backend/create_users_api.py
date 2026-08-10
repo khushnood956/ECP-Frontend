@@ -1,4 +1,3 @@
-import os
 
 with open('app/schemas/user.py', 'w') as f:
     f.write('''from datetime import datetime

@@ -1,5 +1,3 @@
-import os
-import re
 
 def update_user_service():
     path = 'app/services/user_service.py'

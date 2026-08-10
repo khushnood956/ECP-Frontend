@@ -1,10 +1,9 @@
+import json
 from datetime import datetime
 from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, model_validator
-
-import json
 
 
 def parse_notes_field(notes_str: str | None) -> tuple[str | None, str | None, str | None]:
@@ -14,7 +13,7 @@ def parse_notes_field(notes_str: str | None) -> tuple[str | None, str | None, st
         data = json.loads(notes_str)
         if isinstance(data, dict):
             return data.get("motivation_letter"), data.get("documents"), data.get("notes")
-    except Exception:
+    except Exception:  # noqa: BLE001, S110
         pass
     return None, None, notes_str
 
@@ -96,5 +95,4 @@ class LeadResponse(BaseModel):
             "updated_at": data.updated_at
         }
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}

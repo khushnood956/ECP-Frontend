@@ -1,11 +1,14 @@
+from typing import Annotated
+
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from typing import Annotated
-import jwt
 from jwt.exceptions import InvalidTokenError
-from app.core.security import SECRET_KEY, ALGORITHM
-from app.schemas.auth import TokenPayload
+
+from app.core.security import ALGORITHM, SECRET_KEY
 from app.dependencies.services import get_user_service
+from app.models.user import User
+from app.schemas.auth import TokenPayload
 from app.services.user_service import UserService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
@@ -18,12 +21,15 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], user_s
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        role: str = payload.get("role")
-        if email is None:
+        email = payload.get("sub")
+        role = payload.get("role")
+        if email is None or not isinstance(email, str):
             raise credentials_exception
         token_data = TokenPayload(sub=email, role=role)
     except InvalidTokenError:
+        raise credentials_exception
+        
+    if token_data.sub is None:
         raise credentials_exception
         
     user = await user_service.get_by_email(token_data.sub)
@@ -40,7 +46,11 @@ class RequireRole:
     def __init__(self, required_roles: list[str]):
         self.required_roles = required_roles
 
-    def __call__(self, current_user = Depends(get_current_active_user)):
+    def __call__(self, current_user: User = Depends(get_current_active_user)):
+        print(f"RequireRole called! current_user.role: {current_user.role}, required_roles: {self.required_roles}")
         if current_user.role not in self.required_roles:
-            raise HTTPException(status_code=403, detail="Not enough permissions")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions",
+            )
         return current_user

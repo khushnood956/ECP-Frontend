@@ -2,19 +2,20 @@ from collections.abc import Sequence
 from typing import Any, Generic, TypeVar, cast
 from uuid import UUID
 
+from app.db.base import UUIDPrimaryKeyMixin
 from app.repositories.interfaces import IRepository
 from app.repositories.transaction import TransactionManager
 from app.services.exceptions import BusinessRuleViolation, EntityNotFound
 from app.services.interfaces import IService
 
-ModelType = TypeVar("ModelType")
+ModelType = TypeVar("ModelType", bound=UUIDPrimaryKeyMixin)
 CreateSchemaType = TypeVar("CreateSchemaType")
 UpdateSchemaType = TypeVar("UpdateSchemaType")
 
 
 class BaseService(
-    Generic[ModelType, CreateSchemaType, UpdateSchemaType],
     IService[ModelType, CreateSchemaType, UpdateSchemaType],
+    Generic[ModelType, CreateSchemaType, UpdateSchemaType],
 ):
     """
     Generic base service implementation providing common CRUD operations.

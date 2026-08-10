@@ -1,17 +1,27 @@
-import pytest
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
-from httpx import AsyncClient, ASGITransport
-from main import app
-from unittest.mock import patch, AsyncMock
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+
 from app.dependencies.auth import get_current_active_user
+from app.models.enums import AgencyVerificationStatus, UserRole
 from app.models.user import User
-from app.models.enums import AgencyVerificationStatus
-from app.services.exceptions import EntityNotFound, EntityAlreadyExists, PermissionDenied
+from app.services.exceptions import (
+    EntityAlreadyExists,
+    PermissionDenied,
+)
+from main import app
 
+TEST_AGENCY_USER_ID = str(uuid4())
 def override_get_current_active_user():
-    return User(id=str(uuid4()), email="agency@agency.com", is_active=True, role="agency")
+    return User(id=TEST_AGENCY_USER_ID, email="agency@agency.com", is_active=True, role=UserRole.AGENCY)
 
-app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+@pytest.fixture(autouse=True)
+def setup_overrides():
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+    yield
+    app.dependency_overrides.clear()
 
 class MockAgency:
     def __init__(self, agency_id=None, user_id=None, registration_number="REG-1001"):
@@ -55,7 +65,7 @@ async def test_create_agency():
 @pytest.mark.asyncio
 async def test_student_cannot_create_agency():
     def get_student_user():
-        return User(id=str(uuid4()), email="student@student.com", is_active=True, role="student")
+        return User(id=str(uuid4()), email="student@student.com", is_active=True, role=UserRole.STUDENT)
     app.dependency_overrides[get_current_active_user] = get_student_user
 
     with patch('app.services.agency_service.AgencyService.create', new_callable=AsyncMock) as mock_create:
@@ -74,7 +84,7 @@ async def test_student_cannot_create_agency():
 @pytest.mark.asyncio
 async def test_admin_cannot_create_agency():
     def get_admin_user():
-        return User(id=str(uuid4()), email="admin@admin.com", is_active=True, role="admin")
+        return User(id=str(uuid4()), email="admin@admin.com", is_active=True, role=UserRole.ADMIN)
     app.dependency_overrides[get_current_active_user] = get_admin_user
 
     with patch('app.services.agency_service.AgencyService.create', new_callable=AsyncMock) as mock_create:
@@ -107,7 +117,7 @@ async def test_duplicate_agency_profile_for_user():
 async def test_get_agency():
     agency_id = uuid4()
     with patch('app.services.base.BaseService.get_by_id', new_callable=AsyncMock) as mock_get:
-        mock_get.return_value = MockAgency(agency_id=agency_id)
+        mock_get.return_value = MockAgency(agency_id=agency_id, user_id=TEST_AGENCY_USER_ID)
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/agencies/{agency_id}")
         assert response.status_code == 200
@@ -143,7 +153,9 @@ async def test_update_agency():
 @pytest.mark.asyncio
 async def test_delete_agency():
     agency_id = uuid4()
-    with patch('app.services.base.BaseService.delete', new_callable=AsyncMock) as mock_delete:
+    with patch('app.services.agency_service.AgencyService.delete', new_callable=AsyncMock) as mock_delete, \
+         patch('app.services.base.BaseService.get_by_id', new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = MockAgency(agency_id=agency_id, user_id=TEST_AGENCY_USER_ID)
         mock_delete.return_value = True
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.delete(f"/api/v1/agencies/{agency_id}")
@@ -197,8 +209,10 @@ async def test_invalid_jwt():
 @pytest.mark.asyncio
 async def test_non_existing_agency():
     agency_id = uuid4()
-    with patch('app.services.base.BaseService.get_by_id', new_callable=AsyncMock) as mock_get:
+    with patch('app.services.base.BaseService.get_by_id', new_callable=AsyncMock) as mock_get, \
+         patch('app.repositories.agency_repository.AgencyRepository.get_by_user_id', new_callable=AsyncMock) as mock_get_by_user:
         mock_get.return_value = None
+        mock_get_by_user.return_value = None
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get(f"/api/v1/agencies/{agency_id}")
         assert response.status_code == 404

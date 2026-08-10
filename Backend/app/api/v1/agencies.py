@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.common.schemas.responses import SuccessResponse
 from app.common.utils.responses import success_response
-from app.dependencies.auth import get_current_active_user
+from app.dependencies.auth import RequireRole, get_current_active_user
 from app.dependencies.services import get_agency_service
+from app.models.enums import UserRole
 from app.models.user import User
 from app.schemas.agency import AgencyCreate, AgencyResponse, AgencyUpdate
 from app.services.agency_service import AgencyService
@@ -44,9 +45,16 @@ async def get_agency(
     service: AgencyService = Depends(get_agency_service),
 ):
     agency = await service.get_by_id(id)
+    if not agency and hasattr(service.repository, 'get_by_user_id'):
+        agency = await service.repository.get_by_user_id(id)
+            
     if not agency:
         from app.services.exceptions import EntityNotFound
         raise EntityNotFound(f"Agency with id {id} not found.")
+
+    from fastapi import HTTPException
+    if current_user.role != UserRole.ADMIN and str(agency.user_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Not enough permissions to view this profile.")
 
     return success_response(
         data=AgencyResponse.model_validate(agency),
@@ -81,7 +89,14 @@ async def update_agency(
     current_user: User = Depends(get_current_active_user),
     service: AgencyService = Depends(get_agency_service),
 ):
-    agency = await service.update(id, agency_in)
+    target_id = id
+    agency = await service.get_by_id(id)
+    if not agency and hasattr(service.repository, 'get_by_user_id'):
+        agency = await service.repository.get_by_user_id(id)
+        if agency:
+            target_id = UUID(agency.id)
+                
+    agency = await service.update(target_id, agency_in, current_user)
     return success_response(
         data=AgencyResponse.model_validate(agency),
         message="Agency updated successfully",
@@ -94,7 +109,14 @@ async def delete_agency(
     current_user: User = Depends(get_current_active_user),
     service: AgencyService = Depends(get_agency_service),
 ):
-    await service.delete(id)
+    target_id = id
+    agency = await service.get_by_id(id)
+    if not agency and hasattr(service.repository, 'get_by_user_id'):
+        agency = await service.repository.get_by_user_id(id)
+        if agency:
+            target_id = UUID(agency.id)
+                
+    await service.delete(target_id, current_user)
     return success_response(message="Agency deleted successfully")
 
 
@@ -102,13 +124,21 @@ async def delete_agency(
     "/{id}/verify",
     response_model=SuccessResponse[AgencyResponse],
     summary="Verify an agency",
+    tags=["Admin"],
 )
 async def verify_agency(
     id: UUID,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(RequireRole([UserRole.ADMIN])),
     service: AgencyService = Depends(get_agency_service),
 ):
-    agency = await service.verify_agency(id)
+    target_id = id
+    agency = await service.get_by_id(id)
+    if not agency and hasattr(service.repository, 'get_by_user_id'):
+        agency = await service.repository.get_by_user_id(id)
+        if agency:
+            target_id = UUID(agency.id)
+                
+    agency = await service.verify_agency(target_id)
     return success_response(
         data=AgencyResponse.model_validate(agency),
         message="Agency verified successfully",
@@ -119,13 +149,21 @@ async def verify_agency(
     "/{id}/suspend",
     response_model=SuccessResponse[AgencyResponse],
     summary="Suspend an agency",
+    tags=["Admin"],
 )
 async def suspend_agency(
     id: UUID,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(RequireRole([UserRole.ADMIN])),
     service: AgencyService = Depends(get_agency_service),
 ):
-    agency = await service.suspend_agency(id)
+    target_id = id
+    agency = await service.get_by_id(id)
+    if not agency and hasattr(service.repository, 'get_by_user_id'):
+        agency = await service.repository.get_by_user_id(id)
+        if agency:
+            target_id = UUID(agency.id)
+                
+    agency = await service.suspend_agency(target_id)
     return success_response(
         data=AgencyResponse.model_validate(agency),
         message="Agency suspended successfully",

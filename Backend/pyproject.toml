@@ -29,3 +29,10 @@ include = '\.pyi?$'
 
 [tool.isort]
 profile = "black"
+
+[tool.ruff.lint]
+ignore = ["B008"]
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+

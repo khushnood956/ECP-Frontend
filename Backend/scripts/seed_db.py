@@ -1,26 +1,26 @@
 import asyncio
-import uuid
-import sys
-from datetime import datetime, timezone
 import os
+import sys
+import uuid
 
 # Add parent directory to path so we can import from app
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.db.database import AsyncSessionLocal
-from app.models.user import User
-from app.models.student_profile import StudentProfile
-from app.models.agency import Agency
-from app.models.scholarship import Scholarship
-from app.models.lead import Lead
-from app.models.enums import UserRole, Gender, DegreeLevel, FundingType, LeadStatus
 from app.core.security import get_password_hash
+from app.db.database import AsyncSessionLocal
+from app.models.agency import Agency
+from app.models.enums import DegreeLevel, FundingType, Gender, LeadStatus, UserRole
+from app.models.lead import Lead
+from app.models.scholarship import Scholarship
+from app.models.student_profile import StudentProfile
+from app.models.user import User
+
 
 async def seed_database():
     print("Seeding database with test users...")
     async with AsyncSessionLocal() as session:
         # Create standard password hash for "password123"
-        password_hash = "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjIQqiRQYq"
+        password_hash = get_password_hash("password123")
         
         # 1. Create Admin
         admin_id = str(uuid.uuid4())
@@ -144,13 +144,13 @@ async def seed_database():
             if not result.scalar_one_or_none():
                 session.add(scholarship)
                 session.add(lead)
-                print(f"Added Scholarship and Lead")
+                print("Added Scholarship and Lead")
                 
             await session.commit()
             print("Database seeded successfully!")
             print("Login credentials for all users: Password is 'password123'")
             
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             await session.rollback()
             print(f"Failed to seed database: {e}")
 

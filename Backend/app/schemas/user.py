@@ -28,8 +28,7 @@ class UserResponse(UserBase):
     updated_at: datetime
     last_login: datetime | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 class PaginatedUserResponse(BaseModel):
     items: list[UserResponse]

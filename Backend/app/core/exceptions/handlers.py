@@ -126,7 +126,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception):
         req_id = getattr(request.state, "request_id", None)
-        logger.error(f"Unhandled exception on {request.url}: {exc}", exc_info=True)
+        logger.error(f"Unhandled exception on {request.url}: {exc}", exc_info=exc)
         return error_response(
             message="An unexpected error occurred.",
             error_code="INTERNAL_SERVER_ERROR",

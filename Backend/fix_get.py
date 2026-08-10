@@ -1,4 +1,3 @@
-import os
 
 # fix app/api/v1/users.py
 with open('app/api/v1/users.py', 'r') as f:

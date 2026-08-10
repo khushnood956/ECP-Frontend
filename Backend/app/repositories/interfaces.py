@@ -1,7 +1,9 @@
+import builtins
 from collections.abc import Sequence
 from typing import Any, Protocol, TypeVar
 from uuid import UUID
 
+from app.db.base import UUIDPrimaryKeyMixin
 from app.repositories.params import (
     FilterCondition,
     PaginatedResult,
@@ -9,7 +11,7 @@ from app.repositories.params import (
     SortParams,
 )
 
-ModelType = TypeVar("ModelType")
+ModelType = TypeVar("ModelType", bound=UUIDPrimaryKeyMixin)
 
 
 class IRepository(Protocol[ModelType]):
@@ -21,17 +23,17 @@ class IRepository(Protocol[ModelType]):
 
     async def delete(self, id: UUID) -> bool: ...
 
-    async def list(self, **kwargs) -> Sequence[ModelType]: ...
+    async def list(self, **kwargs: Any) -> Sequence[ModelType]: ...
 
     async def list_paginated(
         self,
         pagination: PaginationParams,
         sort: SortParams | None = None,
-        filters: list[FilterCondition] | None = None,
+        filters: builtins.list[FilterCondition] | None = None,
     ) -> PaginatedResult[ModelType]: ...
 
-    async def bulk_create(self, objs_in: list[ModelType]) -> list[ModelType]: ...
+    async def bulk_create(self, objs_in: builtins.list[ModelType]) -> builtins.list[ModelType]: ...
 
-    async def bulk_update(self, updates: list[tuple[UUID, dict[str, Any]]]) -> int: ...
+    async def bulk_update(self, updates: builtins.list[tuple[UUID, dict[str, Any]]]) -> int: ...
 
-    async def bulk_delete(self, ids: list[UUID]) -> int: ...
+    async def bulk_delete(self, ids: builtins.list[UUID]) -> int: ...

@@ -1,8 +1,10 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
+
 from main import app
-from unittest.mock import patch, AsyncMock
-from httpx import ASGITransport
+
 
 @pytest.mark.asyncio
 async def test_register_user():
