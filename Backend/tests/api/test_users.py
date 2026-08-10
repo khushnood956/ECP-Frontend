@@ -1,16 +1,25 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from httpx import AsyncClient, ASGITransport
-from main import app
-from unittest.mock import patch, AsyncMock, MagicMock
+from httpx import ASGITransport, AsyncClient
+
 from app.dependencies.auth import get_current_active_user
+from app.models.enums import UserRole
 from app.models.user import User
+from main import app
+
 
 def override_get_current_active_user():
-    return User(id="test", email="test@test.com", is_active=True, role="admin")
+    return User(id="test", email="test@test.com", is_active=True, role=UserRole.ADMIN)
 
-app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+@pytest.fixture(autouse=True)
+def setup_overrides():
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+    yield
+    app.dependency_overrides.clear()
 
 from uuid import uuid4
+
 
 @pytest.mark.asyncio
 async def test_get_all_users():
@@ -79,7 +88,7 @@ async def test_update_user():
         updated_at = "2023-01-01T00:00:00Z"
         last_login = None
         
-    with patch('app.services.base.BaseService.update', new_callable=AsyncMock) as mock_update:
+    with patch('app.services.user_service.UserService.update', new_callable=AsyncMock) as mock_update:
         mock_update.return_value = MockUser()
         
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -102,7 +111,7 @@ async def test_update_email():
         updated_at = "2023-01-01T00:00:00Z"
         last_login = None
     
-    with patch('app.services.base.BaseService.update', new_callable=AsyncMock) as mock_update:
+    with patch('app.services.user_service.UserService.update', new_callable=AsyncMock) as mock_update:
         mock_update.return_value = MockUser()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.patch(f"/api/v1/users/{user_id}", json={
@@ -115,7 +124,7 @@ async def test_update_email():
 async def test_deactivate_user():
     user_id = uuid4()
     
-    with patch('app.services.base.BaseService.delete', new_callable=AsyncMock) as mock_delete:
+    with patch('app.services.user_service.UserService.delete', new_callable=AsyncMock) as mock_delete:
         mock_delete.return_value = True
         
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:

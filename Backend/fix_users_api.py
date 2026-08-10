@@ -1,4 +1,3 @@
-import os
 
 # 1. Update app/schemas/user.py
 with open('app/schemas/user.py', 'r') as f:

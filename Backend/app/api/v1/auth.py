@@ -1,13 +1,15 @@
 from datetime import timedelta
 from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from app.schemas.auth import Token, UserCreate
-from app.core.security import create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+
+from app.core.security import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token
 from app.dependencies.services import get_auth_service, get_user_service
+from app.schemas.auth import Token, UserCreate
 from app.services.auth_service import AuthService
-from app.services.user_service import UserService
 from app.services.exceptions import BusinessRuleViolation
+from app.services.user_service import UserService
 
 router = APIRouter()
 

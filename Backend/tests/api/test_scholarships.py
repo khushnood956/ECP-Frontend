@@ -1,17 +1,28 @@
-import pytest
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
-from httpx import AsyncClient, ASGITransport
-from main import app
-from unittest.mock import patch, AsyncMock
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+
 from app.dependencies.auth import get_current_active_user
+from app.models.enums import DegreeLevel, FundingType, UserRole
 from app.models.user import User
-from app.models.enums import DegreeLevel, FundingType
-from app.services.exceptions import EntityNotFound, EntityAlreadyExists, PermissionDenied, BusinessRuleViolation
+from app.services.exceptions import (
+    BusinessRuleViolation,
+    EntityAlreadyExists,
+    PermissionDenied,
+)
+from main import app
 
+TEST_SCHOLARSHIP_USER_ID = str(uuid4())
 def override_get_current_active_user():
-    return User(id=str(uuid4()), email="agency@scholarship.com", is_active=True, role="agency")
+    return User(id=TEST_SCHOLARSHIP_USER_ID, email="agency@scholarship.com", is_active=True, role=UserRole.AGENCY)
 
-app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+@pytest.fixture(autouse=True)
+def setup_overrides():
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+    yield
+    app.dependency_overrides.clear()
 
 class MockScholarship:
     def __init__(self, sch_id=None):
@@ -107,11 +118,12 @@ async def test_forbidden_role():
 @pytest.mark.asyncio
 async def test_get_all_scholarships():
     class MockPaginatedResult:
-        items = [MockScholarship(), MockScholarship()]
-        total = 2
-        page = 1
-        page_size = 10
-        total_pages = 1
+        def __init__(self):
+            self.items = [MockScholarship(), MockScholarship()]
+            self.total = 2
+            self.page = 1
+            self.page_size = 10
+            self.total_pages = 1
 
     with patch('app.repositories.base.BaseRepository.list_paginated', new_callable=AsyncMock) as mock_list:
         mock_list.return_value = MockPaginatedResult()

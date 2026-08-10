@@ -15,19 +15,16 @@ from app.dependencies.services import (
 )
 
 __all__ = [
-    # Database
-    "get_db_session",
-    "get_transaction_manager",
-    # Repositories
-    "get_user_repository",
-    "get_student_repository",
     "get_agency_repository",
-    "get_scholarship_repository",
-    "get_lead_repository",
-    # Services
-    "get_user_service",
-    "get_student_service",
     "get_agency_service",
-    "get_scholarship_service",
+    "get_db_session",
+    "get_lead_repository",
     "get_lead_service",
+    "get_scholarship_repository",
+    "get_scholarship_service",
+    "get_student_repository",
+    "get_student_service",
+    "get_transaction_manager",
+    "get_user_repository",
+    "get_user_service",
 ]

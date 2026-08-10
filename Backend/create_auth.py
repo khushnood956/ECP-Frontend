@@ -188,7 +188,6 @@ with open('app/api/router.py', 'r') as f:
     router_content = f.read()
 
 if 'auth.router' not in router_content:
-    import re
     router_content = router_content.replace('from app.api.v1 import ', 'from app.api.v1 import auth, ')
     router_content += '\napi_router.include_router(auth.router, prefix="/auth", tags=["Auth"])\n'
     with open('app/api/router.py', 'w') as f:

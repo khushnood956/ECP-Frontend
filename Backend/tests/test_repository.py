@@ -1,4 +1,5 @@
-from uuid import uuid4
+from typing import Any
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
@@ -54,13 +55,13 @@ async def test_base_repository_create_and_get(
     assert created.first_name == "John"
 
     # Test Get by ID
-    fetched = await repo.get_by_id(profile_id)
+    fetched = await repo.get_by_id(UUID(profile_id))
     assert fetched is not None
     assert fetched.id == profile_id
     assert fetched.last_name == "Doe"
 
     # Test Not Found
-    not_found = await repo.get_by_id(str(uuid4()))
+    not_found = await repo.get_by_id(uuid4())
     assert not_found is None
 
 
@@ -80,20 +81,20 @@ async def test_base_repository_update_and_delete(
     await repo.create(new_profile)
 
     # Test Update
-    updated = await repo.update(profile_id, {"first_name": "Janet"})
+    updated = await repo.update(UUID(profile_id), {"first_name": "Janet"})
     assert updated is not None
     assert updated.first_name == "Janet"
     assert updated.last_name == "Smith"  # Unchanged
 
     # Test Delete
-    deleted = await repo.delete(profile_id)
+    deleted = await repo.delete(UUID(profile_id))
     assert deleted is True
 
-    fetched = await repo.get_by_id(profile_id)
+    fetched = await repo.get_by_id(UUID(profile_id))
     assert fetched is None
 
     # Delete non-existent
-    deleted_again = await repo.delete(profile_id)
+    deleted_again = await repo.delete(UUID(profile_id))
     assert deleted_again is False
 
 
@@ -314,19 +315,20 @@ async def test_bulk_operations(db_session: AsyncSession):
     await db_session.flush()
 
     # Bulk Update
-    updates = [
-        (profiles[0].id, {"first_name": "A_mod"}),
-        (profiles[1].id, {"first_name": "B_mod"}),
+    updates: list[tuple[UUID, dict[str, Any]]] = [
+        (UUID(profiles[0].id), {"first_name": "A_mod"}),
+        (UUID(profiles[1].id), {"first_name": "B_mod"}),
     ]
     affected = await repo.bulk_update(updates)
     assert affected == 2
     await db_session.flush()
 
-    p0 = await repo.get_by_id(profiles[0].id)
+    p0 = await repo.get_by_id(UUID(profiles[0].id))
+    assert p0 is not None
     assert p0.first_name == "A_mod"
 
     # Bulk Delete
-    deleted_count = await repo.bulk_delete([profiles[0].id, profiles[1].id])
+    deleted_count = await repo.bulk_delete([UUID(profiles[0].id), UUID(profiles[1].id)])
     assert deleted_count == 2
     await db_session.flush()
 

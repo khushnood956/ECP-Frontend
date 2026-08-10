@@ -1,4 +1,4 @@
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -138,7 +138,7 @@ async def test_cross_repository_transaction_commit(db_session: AsyncSession):
         lead = Lead(id=lid, student_id=pid, scholarship_id=sid)
         await lead_repo.create(lead)
 
-    fetched_lead = await lead_repo.get_by_id(lid)
+    fetched_lead = await lead_repo.get_by_id(UUID(lid))
     assert fetched_lead is not None
     assert fetched_lead.student_id == pid
 
@@ -164,7 +164,7 @@ async def test_cross_repository_transaction_rollback(db_session: AsyncSession):
     except ValueError:
         pass
 
-    u = await user_repo.get_by_id(uid)
+    u = await user_repo.get_by_id(UUID(uid))
     assert u is None
-    p = await student_repo.get_by_id(pid)
+    p = await student_repo.get_by_id(UUID(pid))
     assert p is None

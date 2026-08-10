@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import auth, agencies, leads, scholarships, students, users
+from app.api.v1 import agencies, auth, leads, scholarships, students, users
 
 api_router = APIRouter()
 

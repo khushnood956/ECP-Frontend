@@ -29,6 +29,7 @@ async def test_update_profile_not_found(student_service, student_repo_mock):
 
 from app.services.exceptions import BusinessRuleViolation
 
+
 @pytest.mark.asyncio
 async def test_create_student_success(student_service, student_repo_mock):
     user_id = uuid.uuid4()

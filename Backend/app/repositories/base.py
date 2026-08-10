@@ -1,15 +1,16 @@
+import builtins
 import math
 from collections.abc import Sequence
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar, cast
 from uuid import UUID
 
-from sqlalchemy import asc
+from sqlalchemy import CursorResult, asc, desc, func, select
 from sqlalchemy import delete as sa_delete
-from sqlalchemy import desc, func, select
 from sqlalchemy import update as sa_update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.base import UUIDPrimaryKeyMixin
 from app.repositories.exceptions import RepositoryError
 from app.repositories.interfaces import IRepository
 from app.repositories.params import (
@@ -20,7 +21,7 @@ from app.repositories.params import (
     SortParams,
 )
 
-ModelType = TypeVar("ModelType")
+ModelType = TypeVar("ModelType", bound=UUIDPrimaryKeyMixin)
 
 
 class BaseRepository(IRepository[ModelType], Generic[ModelType]):
@@ -74,7 +75,7 @@ class BaseRepository(IRepository[ModelType], Generic[ModelType]):
     async def delete(self, id: UUID) -> bool:
         try:
             stmt = sa_delete(self.model).where(self.model.id == str(id))
-            result = await self.session.execute(stmt)
+            result = cast(CursorResult, await self.session.execute(stmt))
             await self.session.flush()
             return result.rowcount > 0
         except SQLAlchemyError as e:
@@ -82,7 +83,7 @@ class BaseRepository(IRepository[ModelType], Generic[ModelType]):
                 "Database error during deletion", details={"error": str(e)}
             ) from e
 
-    async def list(self, **kwargs) -> Sequence[ModelType]:
+    async def list(self, **kwargs: Any) -> Sequence[ModelType]:
         try:
             stmt = select(self.model)
             for key, value in kwargs.items():
@@ -100,7 +101,7 @@ class BaseRepository(IRepository[ModelType], Generic[ModelType]):
         self,
         pagination: PaginationParams,
         sort: SortParams | None = None,
-        filters: list[FilterCondition] | None = None,
+        filters: builtins.list[FilterCondition] | None = None,
     ) -> PaginatedResult[ModelType]:
         try:
             stmt = select(self.model)
@@ -187,7 +188,7 @@ class BaseRepository(IRepository[ModelType], Generic[ModelType]):
                 "Database error during pagination list", details={"error": str(e)}
             ) from e
 
-    async def bulk_create(self, objs_in: list[ModelType]) -> list[ModelType]:
+    async def bulk_create(self, objs_in: builtins.list[ModelType]) -> builtins.list[ModelType]:
         if not objs_in:
             return []
         try:
@@ -203,7 +204,7 @@ class BaseRepository(IRepository[ModelType], Generic[ModelType]):
                 "Database error during bulk creation", details={"error": str(e)}
             ) from e
 
-    async def bulk_update(self, updates: list[tuple[UUID, dict[str, Any]]]) -> int:
+    async def bulk_update(self, updates: builtins.list[tuple[UUID, dict[str, Any]]]) -> int:
         if not updates:
             return 0
         try:
@@ -216,7 +217,7 @@ class BaseRepository(IRepository[ModelType], Generic[ModelType]):
                     .where(self.model.id == str(id_val))
                     .values(**obj_in)
                 )
-                res = await self.session.execute(stmt)
+                res = cast(CursorResult, await self.session.execute(stmt))
                 total_affected += res.rowcount
             await self.session.flush()
             return total_affected
@@ -229,13 +230,13 @@ class BaseRepository(IRepository[ModelType], Generic[ModelType]):
                 "Database error during bulk update", details={"error": str(e)}
             ) from e
 
-    async def bulk_delete(self, ids: list[UUID]) -> int:
+    async def bulk_delete(self, ids: builtins.list[UUID]) -> int:
         if not ids:
             return 0
         try:
             str_ids = [str(id) for id in ids]
             stmt = sa_delete(self.model).where(self.model.id.in_(str_ids))
-            result = await self.session.execute(stmt)
+            result = cast(CursorResult, await self.session.execute(stmt))
             await self.session.flush()
             return result.rowcount
         except SQLAlchemyError as e:

@@ -10,6 +10,7 @@ from app.services.base import BaseService
 
 
 class ScholarshipService(BaseService[Scholarship, Any, Any]):
+    repository: ScholarshipRepository
     """
     Business Responsibility:
     Handles scholarship publishing lifecycle and specialized search logic.
@@ -43,25 +44,57 @@ class ScholarshipService(BaseService[Scholarship, Any, Any]):
         return Scholarship(**data)
 
 
-    async def publish(self, id: UUID) -> Scholarship:
+    async def publish(self, id: UUID, user: Any = None) -> Scholarship:
         """
         Publish a scholarship (make it active).
         Raises BusinessRuleViolation if already published.
         """
         async with self.transaction_manager.transaction():
             scholarship = await self._require_entity(id)
+            if user is not None:
+                from app.models.enums import UserRole
+                if user.role != UserRole.ADMIN:
+                    if user.role != UserRole.AGENCY:
+                        from app.services.exceptions import PermissionDenied
+                        raise PermissionDenied("Only agency users can publish scholarships.")
+                    from sqlalchemy import select
+
+                    from app.models.agency import Agency
+                    stmt = select(Agency).where(Agency.user_id == str(user.id))
+                    result = await self.repository.session.execute(stmt)
+                    agency = result.scalar_one_or_none()
+                    if not agency or str(scholarship.agency_id) != str(agency.id):
+                        from app.services.exceptions import PermissionDenied
+                        raise PermissionDenied("You do not have permission to publish this scholarship.")
+                        
             self._prevent_redundant_state(
                 scholarship.is_active, True, f"Scholarship {id} is already published."
             )
             return await self.repository.update(id, {"is_active": True})  # type: ignore
 
-    async def unpublish(self, id: UUID) -> Scholarship:
+    async def unpublish(self, id: UUID, user: Any = None) -> Scholarship:
         """
         Unpublish a scholarship (make it inactive).
         Raises BusinessRuleViolation if already unpublished.
         """
         async with self.transaction_manager.transaction():
             scholarship = await self._require_entity(id)
+            if user is not None:
+                from app.models.enums import UserRole
+                if user.role != UserRole.ADMIN:
+                    if user.role != UserRole.AGENCY:
+                        from app.services.exceptions import PermissionDenied
+                        raise PermissionDenied("Only agency users can unpublish scholarships.")
+                    from sqlalchemy import select
+
+                    from app.models.agency import Agency
+                    stmt = select(Agency).where(Agency.user_id == str(user.id))
+                    result = await self.repository.session.execute(stmt)
+                    agency = result.scalar_one_or_none()
+                    if not agency or str(scholarship.agency_id) != str(agency.id):
+                        from app.services.exceptions import PermissionDenied
+                        raise PermissionDenied("You do not have permission to unpublish this scholarship.")
+                        
             self._prevent_redundant_state(
                 scholarship.is_active,
                 False,
@@ -88,14 +121,13 @@ class ScholarshipService(BaseService[Scholarship, Any, Any]):
 
         # Validate deadline is not in the past
         import datetime
-        from datetime import date
         deadline = data.get("deadline")
         if deadline:
             if isinstance(deadline, str):
                 try:
                     deadline_val = datetime.datetime.fromisoformat(deadline).date()
                 except ValueError:
-                    deadline_val = datetime.datetime.strptime(deadline, "%Y-%m-%d").date()
+                    deadline_val = datetime.datetime.strptime(deadline, "%Y-%m-%d").replace(tzinfo=datetime.timezone.utc).date()
             elif isinstance(deadline, datetime.datetime):
                 deadline_val = deadline.date()
             elif isinstance(deadline, datetime.date):
@@ -103,7 +135,7 @@ class ScholarshipService(BaseService[Scholarship, Any, Any]):
             else:
                 deadline_val = deadline
                 
-            today = date.today()
+            today = datetime.datetime.now(datetime.timezone.utc).date()
             if deadline_val < today:
                 from app.services.exceptions import BusinessRuleViolation
                 raise BusinessRuleViolation("Scholarship deadline cannot be in the past")
@@ -124,8 +156,9 @@ class ScholarshipService(BaseService[Scholarship, Any, Any]):
                 raise PermissionDenied("Only agency users can create scholarships.")
 
             if user.role == UserRole.AGENCY:
-                from app.models.agency import Agency
                 from sqlalchemy import select
+
+                from app.models.agency import Agency
                 stmt = select(Agency).where(Agency.user_id == str(user.id))
                 result = await self.repository.session.execute(stmt)
                 agency = result.scalar_one_or_none()
@@ -146,56 +179,77 @@ class ScholarshipService(BaseService[Scholarship, Any, Any]):
 
 
     async def update(self, id: UUID, obj_in: Any, user: Any = None) -> Scholarship | None:
-        if user is not None:
-            from app.models.enums import UserRole
-            if user.role not in [UserRole.AGENCY, UserRole.ADMIN]:
-                from app.services.exceptions import PermissionDenied
-                raise PermissionDenied("Only agency users can update scholarships.")
-
-        data = obj_in.model_dump(exclude_unset=True) if hasattr(obj_in, "model_dump") else dict(obj_in)
-
-        # Validate deadline is not in the past
-        import datetime
-        from datetime import date
-        deadline = data.get("deadline")
-        if deadline:
-            if isinstance(deadline, str):
-                try:
-                    deadline_val = datetime.datetime.fromisoformat(deadline).date()
-                except ValueError:
-                    deadline_val = datetime.datetime.strptime(deadline, "%Y-%m-%d").date()
-            elif isinstance(deadline, datetime.datetime):
-                deadline_val = deadline.date()
-            elif isinstance(deadline, datetime.date):
-                deadline_val = deadline
-            else:
-                deadline_val = deadline
-                
-            today = date.today()
-            if deadline_val < today:
-                from app.services.exceptions import BusinessRuleViolation
-                raise BusinessRuleViolation("Scholarship deadline cannot be in the past")
-
-        # Validate title duplicate
-        title = data.get("title")
-        if title:
-            existing_schs = await self.repository.list(title=title)
-            if existing_schs and any(str(s.id) != str(id) for s in existing_schs):
-                from app.services.exceptions import EntityAlreadyExists
-                raise EntityAlreadyExists(f"Scholarship with title '{title}' already exists.")
-
         async with self.transaction_manager.transaction():
-            await self._require_entity(id)
+            scholarship = await self._require_entity(id)
+            if user is not None:
+                from app.models.enums import UserRole
+                if user.role not in [UserRole.AGENCY, UserRole.ADMIN]:
+                    from app.services.exceptions import PermissionDenied
+                    raise PermissionDenied("Only agency users can update scholarships.")
+                
+                if user.role == UserRole.AGENCY:
+                    from sqlalchemy import select
+
+                    from app.models.agency import Agency
+                    stmt = select(Agency).where(Agency.user_id == str(user.id))
+                    result = await self.repository.session.execute(stmt)
+                    agency = result.scalar_one_or_none()
+                    if not agency or str(scholarship.agency_id) != str(agency.id):
+                        from app.services.exceptions import PermissionDenied
+                        raise PermissionDenied("You do not have permission to update this scholarship.")
+
+            data = obj_in.model_dump(exclude_unset=True) if hasattr(obj_in, "model_dump") else dict(obj_in)
+
+            # Validate deadline is not in the past
+            import datetime
+            deadline = data.get("deadline")
+            if deadline:
+                if isinstance(deadline, str):
+                    try:
+                        deadline_val = datetime.datetime.fromisoformat(deadline).date()
+                    except ValueError:
+                        deadline_val = datetime.datetime.strptime(deadline, "%Y-%m-%d").replace(tzinfo=datetime.timezone.utc).date()
+                elif isinstance(deadline, datetime.datetime):
+                    deadline_val = deadline.date()
+                elif isinstance(deadline, datetime.date):
+                    deadline_val = deadline
+                else:
+                    deadline_val = deadline
+                    
+                today = datetime.datetime.now(datetime.timezone.utc).date()
+                if deadline_val < today:
+                    from app.services.exceptions import BusinessRuleViolation
+                    raise BusinessRuleViolation("Scholarship deadline cannot be in the past")
+
+            title = data.get("title")
+            if title:
+                existing_schs = await self.repository.list(title=title)
+                if existing_schs and any(str(s.id) != str(id) for s in existing_schs):
+                    from app.services.exceptions import EntityAlreadyExists
+                    raise EntityAlreadyExists(f"Scholarship with title '{title}' already exists.")
+
             return await self.repository.update(id, data)
 
     async def delete(self, id: UUID, user: Any = None) -> bool:
-        if user is not None:
-            from app.models.enums import UserRole
-            if user.role not in [UserRole.AGENCY, UserRole.ADMIN]:
-                from app.services.exceptions import PermissionDenied
-                raise PermissionDenied("Only agency users can delete scholarships.")
-        
         async with self.transaction_manager.transaction():
-            await self._require_entity(id)
+            scholarship = await self._require_entity(id)
+            
+            if user is not None:
+                from app.models.enums import UserRole
+                if user.role not in [UserRole.AGENCY, UserRole.ADMIN]:
+                    from app.services.exceptions import PermissionDenied
+                    raise PermissionDenied("Only agency users can delete scholarships.")
+                    
+                if user.role == UserRole.AGENCY:
+                    from sqlalchemy import select
+
+                    from app.models.agency import Agency
+                    stmt = select(Agency).where(Agency.user_id == str(user.id))
+                    result = await self.repository.session.execute(stmt)
+                    agency = result.scalar_one_or_none()
+                    if not agency or str(scholarship.agency_id) != str(agency.id):
+                        from app.services.exceptions import PermissionDenied
+                        raise PermissionDenied("You do not have permission to delete this scholarship.")
+            
             return await self.repository.delete(id)
 

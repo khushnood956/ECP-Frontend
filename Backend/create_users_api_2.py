@@ -1,4 +1,3 @@
-import re
 
 with open('app/services/user_service.py', 'r') as f:
     content = f.read()

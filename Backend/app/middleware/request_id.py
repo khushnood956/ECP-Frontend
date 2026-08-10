@@ -55,9 +55,8 @@ class RequestLoggingMiddleware:
             await self.app(scope, receive, send_wrapper)
         except Exception:
             process_time = (time.time() - start_time) * 1000
-            logger.error(
-                f"Request failed: {request.method} {request.url.path} - Time: {process_time:.2f}ms",
-                exc_info=True,
+            logger.exception(
+                f"Request failed: {request.method} {request.url.path} - Time: {process_time:.2f}ms"
             )
             raise
         finally:

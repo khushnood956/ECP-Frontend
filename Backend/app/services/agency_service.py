@@ -10,6 +10,7 @@ from app.services.base import BaseService
 
 
 class AgencyService(BaseService[Agency, Any, Any]):
+    repository: AgencyRepository
     """
     Business Responsibility:
     Handles educational agency profile operations and verification lifecycle.
@@ -85,9 +86,9 @@ class AgencyService(BaseService[Agency, Any, Any]):
             update_data = {"verification_status": AgencyVerificationStatus.REJECTED}
             return await self.repository.update(id, update_data)  # type: ignore
 
-    async def create(self, obj_in: Any, user: Any) -> Agency:
+    async def create(self, obj_in: Any, user: Any = None) -> Agency:
         from app.models.enums import UserRole
-        if user.role != UserRole.AGENCY:
+        if user is None or user.role != UserRole.AGENCY:
             from app.services.exceptions import PermissionDenied
             raise PermissionDenied("Only agency users can create agency profiles.")
 
@@ -109,9 +110,14 @@ class AgencyService(BaseService[Agency, Any, Any]):
             return await self.repository.create(model_instance)
 
 
-    async def update(self, id: UUID, obj_in: Any) -> Agency | None:
+    async def update(self, id: UUID, obj_in: Any, user: Any = None) -> Agency | None:
         async with self.transaction_manager.transaction():
             agency = await self._require_entity(id)
+            if user is not None:
+                from app.models.enums import UserRole
+                if user.role != UserRole.ADMIN and str(agency.user_id) != str(user.id):
+                    from app.services.exceptions import PermissionDenied
+                    raise PermissionDenied("You do not have permission to update this agency.")
 
             update_data = (
                 obj_in.model_dump(exclude_unset=True)
@@ -127,4 +133,14 @@ class AgencyService(BaseService[Agency, Any, Any]):
                     raise EntityAlreadyExists(f"Agency with registration number '{new_reg_num}' already exists.")
 
             return await self.repository.update(id, update_data)
+
+    async def delete(self, id: UUID, user: Any = None) -> bool:
+        async with self.transaction_manager.transaction():
+            agency = await self._require_entity(id)
+            if user is not None:
+                from app.models.enums import UserRole
+                if user.role != UserRole.ADMIN and str(agency.user_id) != str(user.id):
+                    from app.services.exceptions import PermissionDenied
+                    raise PermissionDenied("You do not have permission to delete this agency.")
+            return await self.repository.delete(id)
 

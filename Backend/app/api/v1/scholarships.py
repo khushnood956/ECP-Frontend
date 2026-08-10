@@ -161,7 +161,7 @@ async def publish_scholarship(
     service: ScholarshipService = Depends(get_scholarship_service),
 ):
     check_agency_or_admin_role(current_user)
-    scholarship = await service.publish(id)
+    scholarship = await service.publish(id, current_user)
     return success_response(
         data=ScholarshipResponse.model_validate(scholarship),
         message="Scholarship published successfully",
@@ -179,7 +179,7 @@ async def unpublish_scholarship(
     service: ScholarshipService = Depends(get_scholarship_service),
 ):
     check_agency_or_admin_role(current_user)
-    scholarship = await service.unpublish(id)
+    scholarship = await service.unpublish(id, current_user)
     return success_response(
         data=ScholarshipResponse.model_validate(scholarship),
         message="Scholarship unpublished successfully",

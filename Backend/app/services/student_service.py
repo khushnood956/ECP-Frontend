@@ -9,6 +9,7 @@ from app.services.exceptions import EntityNotFound
 
 
 class StudentService(BaseService[StudentProfile, Any, Any]):
+    repository: StudentProfileRepository
     """
     Business Responsibility:
     Handles student profile data management and existence verification.
@@ -89,3 +90,29 @@ class StudentService(BaseService[StudentProfile, Any, Any]):
             
             model_instance = self._to_model(obj_in)
             return await self.repository.create(model_instance)
+
+    async def update(self, id: UUID, obj_in: Any, user: Any = None) -> StudentProfile | None:
+        async with self.transaction_manager.transaction():
+            student = await self._require_entity(id)
+            if user is not None:
+                from app.models.enums import UserRole
+                if user.role != UserRole.ADMIN and str(student.user_id) != str(user.id):
+                    from app.services.exceptions import PermissionDenied
+                    raise PermissionDenied("You do not have permission to update this student profile.")
+            
+            update_data = (
+                obj_in.model_dump(exclude_unset=True)
+                if hasattr(obj_in, "model_dump")
+                else obj_in
+            )
+            return await self.repository.update(id, update_data)
+            
+    async def delete(self, id: UUID, user: Any = None) -> bool:
+        async with self.transaction_manager.transaction():
+            student = await self._require_entity(id)
+            if user is not None:
+                from app.models.enums import UserRole
+                if user.role != UserRole.ADMIN and str(student.user_id) != str(user.id):
+                    from app.services.exceptions import PermissionDenied
+                    raise PermissionDenied("You do not have permission to delete this student profile.")
+            return await self.repository.delete(id)

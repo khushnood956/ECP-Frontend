@@ -1,7 +1,7 @@
 from app.core.security import verify_password
-from app.services.exceptions import BusinessRuleViolation
-from app.services.user_service import UserService
 from app.models.user import User
+from app.services.user_service import UserService
+
 
 class AuthService:
     def __init__(self, user_service: UserService):

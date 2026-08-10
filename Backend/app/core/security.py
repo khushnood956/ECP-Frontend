@@ -1,21 +1,26 @@
-import jwt
 from datetime import datetime, timedelta, timezone
-from passlib.context import CryptContext
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import bcrypt
+import jwt
 
-SECRET_KEY = "supersecretkey"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+from app.core.config.settings import settings
+
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 def get_password_hash(password: str) -> str:
     # bcrypt has a 72-byte max password length limitation
-    password_clean = password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
-    return pwd_context.hash(password_clean)
+    password_clean = password.encode("utf-8")[:72]
+    return bcrypt.hashpw(password_clean, bcrypt.gensalt()).decode("utf-8")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    password_clean = plain_password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
-    return pwd_context.verify(password_clean, hashed_password)
+    password_clean = plain_password.encode("utf-8")[:72]
+    hashed_password_bytes = hashed_password.encode("utf-8")
+    try:
+        return bcrypt.checkpw(password_clean, hashed_password_bytes)
+    except Exception:  # noqa: BLE001
+        return False
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()

@@ -19,6 +19,6 @@ async def check_database_health(db: AsyncSession) -> bool:
     try:
         await db.execute(text("SELECT 1"))
         return True
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.error(f"Database health check failed: {exc}")
         return False

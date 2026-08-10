@@ -41,6 +41,7 @@ async def test_unpublish_twice_fails(scholarship_service, scholarship_repo_mock)
 
 import datetime
 
+
 @pytest.mark.asyncio
 async def test_create_scholarship(scholarship_service, scholarship_repo_mock):
     sch_data = {"agency_id": uuid.uuid4(), "deadline": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=10)}

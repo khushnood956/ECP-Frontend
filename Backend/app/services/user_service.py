@@ -8,6 +8,7 @@ from app.services.base import BaseService
 
 
 class UserService(BaseService[User, Any, Any]):
+    repository: UserRepository
     """
     Business Responsibility:
     Handles core user lifecycle management, including fetching user details and toggling active status.
@@ -103,4 +104,55 @@ class UserService(BaseService[User, Any, Any]):
                 from app.services.exceptions import BusinessRuleViolation
                 raise BusinessRuleViolation("Invalid role")
             model_instance = self._to_model(obj_in)
-            return await self.repository.create(model_instance)
+            created_user = await self.repository.create(model_instance)
+            
+            import uuid
+            role_val = data.get("role")
+            if role_val and (role_val == "student" or role_val == "STUDENT"):
+                from app.models.student_profile import StudentProfile
+                sp = StudentProfile(
+                    id=str(uuid.uuid4()),
+                    user_id=created_user.id,
+                    first_name="New",
+                    last_name="Student"
+                )
+                self.transaction_manager.session.add(sp)
+            elif role_val and (role_val == "agency" or role_val == "AGENCY"):
+                from app.models.agency import Agency
+                email_prefix = data.get("email", "Agency").split("@")[0]
+                ap = Agency(
+                    id=str(uuid.uuid4()),
+                    user_id=created_user.id,
+                    agency_name=email_prefix,
+                    email=data.get("email")
+                )
+                self.transaction_manager.session.add(ap)
+                
+            return created_user
+
+    async def update(self, id: UUID, obj_in: Any, user: Any = None) -> User | None:
+        async with self.transaction_manager.transaction():
+            user_obj = await self._require_entity(id)
+            if user is not None:
+                from app.models.enums import UserRole
+                if user.role != UserRole.ADMIN and str(user_obj.id) != str(user.id):
+                    from app.services.exceptions import PermissionDenied
+                    raise PermissionDenied("You do not have permission to update this user.")
+            
+            update_data = (
+                obj_in.model_dump(exclude_unset=True)
+                if hasattr(obj_in, "model_dump")
+                else obj_in.copy() if isinstance(obj_in, dict) else dict(obj_in)
+            )
+            return await self.repository.update(id, update_data)
+
+    async def delete(self, id: UUID, user: Any = None) -> bool:
+        async with self.transaction_manager.transaction():
+            await self._require_entity(id)
+            if user is not None:
+                from app.models.enums import UserRole
+                if user.role != UserRole.ADMIN:
+                    from app.services.exceptions import PermissionDenied
+                    raise PermissionDenied("Only admin users can delete users.")
+                    
+            return await self.repository.delete(id)

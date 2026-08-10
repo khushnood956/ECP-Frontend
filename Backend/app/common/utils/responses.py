@@ -19,7 +19,7 @@ def success_response(
     if not request_id:
         request_id = request_id_ctx_var.get()
 
-    response_model = SuccessResponse(
+    response_model: SuccessResponse = SuccessResponse(
         success=True, message=message, data=data, request_id=request_id
     )
 

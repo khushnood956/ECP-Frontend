@@ -1,5 +1,7 @@
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, String, Text
-from sqlalchemy.orm import relationship
+from datetime import datetime
+
+from sqlalchemy import DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.enums import LeadStatus
@@ -12,25 +14,25 @@ class Lead(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     __tablename__ = "leads"
 
-    student_id = Column(
+    student_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("student_profiles.id", ondelete="CASCADE"),
         nullable=False,
     )
-    agency_id = Column(
+    agency_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("agencies.id", ondelete="SET NULL"), nullable=True
     )
-    scholarship_id = Column(
+    scholarship_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("scholarships.id", ondelete="CASCADE"), nullable=False
     )
 
-    status = Column(
+    status: Mapped[LeadStatus] = mapped_column(
         Enum(LeadStatus), default=LeadStatus.NEW, index=True, nullable=False
     )
-    notes = Column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    status_updated_at = Column(DateTime(timezone=True), nullable=True)
-    follow_up_date = Column(DateTime(timezone=True), index=True, nullable=True)
+    status_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    follow_up_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True, nullable=True)
 
     # Relationships
     student = relationship("StudentProfile", back_populates="leads")

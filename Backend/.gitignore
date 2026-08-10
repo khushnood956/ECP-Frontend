@@ -57,3 +57,9 @@ coverage.xml
 
 Extras
 Documentation
+# Temporary scripts
+create_auth.py
+
+
+.env.test
+

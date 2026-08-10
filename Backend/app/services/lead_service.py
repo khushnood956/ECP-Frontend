@@ -9,10 +9,17 @@ from app.repositories.agency_repository import AgencyRepository
 from app.repositories.lead_repository import LeadRepository
 from app.repositories.transaction import TransactionManager
 from app.services.base import BaseService
-from app.services.exceptions import BusinessRuleViolation, EntityNotFound, PermissionDenied, EntityAlreadyExists
+from app.services.exceptions import (
+    BusinessRuleViolation,
+    EntityAlreadyExists,
+    EntityNotFound,
+    PermissionDenied,
+)
 
 
 class LeadService(BaseService[Lead, Any, Any]):
+    repository: LeadRepository
+
     def __init__(
         self,
         repository: LeadRepository,
@@ -32,7 +39,7 @@ class LeadService(BaseService[Lead, Any, Any]):
 
     async def assign_agency(self, lead_id: UUID, agency_id: UUID) -> Lead:
         async with self.transaction_manager.transaction():
-            lead = await self._require_entity(lead_id)
+            await self._require_entity(lead_id)
             agency = await self.agency_repository.get_by_id(agency_id)
             if not agency:
                 raise EntityNotFound(f"Agency {agency_id} does not exist.")
@@ -74,19 +81,21 @@ class LeadService(BaseService[Lead, Any, Any]):
         if user is not None:
             from app.models.enums import UserRole
             if user.role == UserRole.STUDENT:
-                from app.models.student_profile import StudentProfile
                 from sqlalchemy import select
-                stmt = select(StudentProfile).where(StudentProfile.user_id == str(user.id))
-                result = await self.repository.session.execute(stmt)
+
+                from app.models.student_profile import StudentProfile
+                student_stmt = select(StudentProfile).where(StudentProfile.user_id == str(user.id))
+                result = await self.repository.session.execute(student_stmt)
                 student_profile = result.scalar_one_or_none()
                 if not student_profile or str(lead.student_id) != str(student_profile.id):
                     raise PermissionDenied("You do not have permission to view this lead.")
             elif user.role == UserRole.AGENCY:
+                from sqlalchemy import select
+
                 from app.models.agency import Agency
                 from app.models.scholarship import Scholarship
-                from sqlalchemy import select
-                stmt = select(Agency).where(Agency.user_id == str(user.id))
-                result = await self.repository.session.execute(stmt)
+                agency_stmt = select(Agency).where(Agency.user_id == str(user.id))
+                result = await self.repository.session.execute(agency_stmt)
                 agency = result.scalar_one_or_none()
                 
                 stmt_sch = select(Scholarship).where(Scholarship.id == str(lead.scholarship_id))
@@ -103,10 +112,11 @@ class LeadService(BaseService[Lead, Any, Any]):
         filters = []
 
         if user.role == UserRole.STUDENT:
-            from app.models.student_profile import StudentProfile
             from sqlalchemy import select
-            stmt = select(StudentProfile).where(StudentProfile.user_id == str(user.id))
-            result = await self.repository.session.execute(stmt)
+
+            from app.models.student_profile import StudentProfile
+            student_stmt = select(StudentProfile).where(StudentProfile.user_id == str(user.id))
+            result = await self.repository.session.execute(student_stmt)
             student_profile = result.scalar_one_or_none()
             if not student_profile:
                 from app.repositories.params import PaginatedResult
@@ -114,11 +124,12 @@ class LeadService(BaseService[Lead, Any, Any]):
             filters.append(FilterCondition(field="student_id", operator=FilterOperator.EQ, value=str(student_profile.id)))
 
         elif user.role == UserRole.AGENCY:
+            from sqlalchemy import select
+
             from app.models.agency import Agency
             from app.models.scholarship import Scholarship
-            from sqlalchemy import select
-            stmt = select(Agency).where(Agency.user_id == str(user.id))
-            result = await self.repository.session.execute(stmt)
+            agency_stmt = select(Agency).where(Agency.user_id == str(user.id))
+            result = await self.repository.session.execute(agency_stmt)
             agency = result.scalar_one_or_none()
             if not agency:
                 from app.repositories.params import PaginatedResult
@@ -153,10 +164,11 @@ class LeadService(BaseService[Lead, Any, Any]):
         if user.role != UserRole.STUDENT:
             raise PermissionDenied("Only student users can apply for scholarships.")
 
-        from app.models.student_profile import StudentProfile
         from sqlalchemy import select
-        stmt = select(StudentProfile).where(StudentProfile.user_id == str(user.id))
-        result = await self.repository.session.execute(stmt)
+
+        from app.models.student_profile import StudentProfile
+        student_stmt = select(StudentProfile).where(StudentProfile.user_id == str(user.id))
+        result = await self.repository.session.execute(student_stmt)
         student_profile = result.scalar_one_or_none()
         if not student_profile:
             raise PermissionDenied("Student profile does not exist. Please create a student profile first.")
@@ -175,8 +187,8 @@ class LeadService(BaseService[Lead, Any, Any]):
             raise BusinessRuleViolation("Scholarship is inactive.")
 
         if scholarship.deadline:
-            from datetime import date
-            if scholarship.deadline < date.today():
+            from datetime import datetime, timezone
+            if scholarship.deadline < datetime.now(timezone.utc).date():
                 raise BusinessRuleViolation("Scholarship deadline has passed.")
 
         # Duplicate detection
@@ -230,10 +242,11 @@ class LeadService(BaseService[Lead, Any, Any]):
             if "status" in data and data["status"] is not None:
                 raise PermissionDenied("Students are not allowed to update the status field.")
 
-            from app.models.student_profile import StudentProfile
             from sqlalchemy import select
-            stmt = select(StudentProfile).where(StudentProfile.user_id == str(user.id))
-            result = await self.repository.session.execute(stmt)
+
+            from app.models.student_profile import StudentProfile
+            student_stmt = select(StudentProfile).where(StudentProfile.user_id == str(user.id))
+            result = await self.repository.session.execute(student_stmt)
             student_profile = result.scalar_one_or_none()
             if not student_profile or str(lead.student_id) != str(student_profile.id):
                 raise PermissionDenied("You do not have permission to modify this lead.")
@@ -258,11 +271,12 @@ class LeadService(BaseService[Lead, Any, Any]):
                 if field in data and data[field] is not None:
                     raise PermissionDenied("Agencies are not allowed to update student-owned fields.")
 
+            from sqlalchemy import select
+
             from app.models.agency import Agency
             from app.models.scholarship import Scholarship
-            from sqlalchemy import select
-            stmt = select(Agency).where(Agency.user_id == str(user.id))
-            result = await self.repository.session.execute(stmt)
+            agency_stmt = select(Agency).where(Agency.user_id == str(user.id))
+            result = await self.repository.session.execute(agency_stmt)
             agency = result.scalar_one_or_none()
 
             stmt_sch = select(Scholarship).where(Scholarship.id == str(lead.scholarship_id))
@@ -309,7 +323,7 @@ class LeadService(BaseService[Lead, Any, Any]):
                 return await self.repository.update(id, {"status": target_status, "status_updated_at": datetime.now(timezone.utc)})
 
         elif user.role == UserRole.ADMIN:
-            update_fields = {}
+            update_fields: dict[str, Any] = {}
             if "status" in data and data["status"] is not None:
                 status_str = data["status"]
                 status_map_rev = {
@@ -344,10 +358,11 @@ class LeadService(BaseService[Lead, Any, Any]):
         lead = await self._require_entity(id)
 
         if user.role == UserRole.STUDENT:
-            from app.models.student_profile import StudentProfile
             from sqlalchemy import select
-            stmt = select(StudentProfile).where(StudentProfile.user_id == str(user.id))
-            result = await self.repository.session.execute(stmt)
+
+            from app.models.student_profile import StudentProfile
+            student_stmt = select(StudentProfile).where(StudentProfile.user_id == str(user.id))
+            result = await self.repository.session.execute(student_stmt)
             student_profile = result.scalar_one_or_none()
             if not student_profile or str(lead.student_id) != str(student_profile.id):
                 raise PermissionDenied("You do not have permission to withdraw this lead.")

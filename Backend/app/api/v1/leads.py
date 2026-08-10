@@ -10,9 +10,8 @@ from app.models.enums import LeadStatus
 from app.models.user import User
 from app.schemas.lead import (
     LeadCreate,
-    LeadResponse,
-    LeadUpdate,
     LeadPatchRequest,
+    LeadResponse,
     LeadStatusUpdate,
 )
 from app.services.lead_service import LeadService
