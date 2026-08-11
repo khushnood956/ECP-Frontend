@@ -74,3 +74,19 @@ from app.services.auth_service import AuthService
 
 async def get_auth_service(user_service=Depends(get_user_service)) -> AuthService:
     return AuthService(user_service=user_service)
+
+def get_admin_service(
+    user_repo: UserRepository = Depends(get_user_repository),
+    student_repo: StudentProfileRepository = Depends(get_student_repository),
+    agency_repo: AgencyRepository = Depends(get_agency_repository),
+    scholarship_repo: ScholarshipRepository = Depends(get_scholarship_repository),
+    lead_repo: LeadRepository = Depends(get_lead_repository)
+):
+    from app.services.admin_service import AdminService
+    return AdminService(
+        user_repo=user_repo,
+        student_repo=student_repo,
+        agency_repo=agency_repo,
+        scholarship_repo=scholarship_repo,
+        lead_repo=lead_repo
+    )

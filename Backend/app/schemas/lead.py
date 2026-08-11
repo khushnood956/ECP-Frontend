@@ -61,6 +61,7 @@ class LeadResponse(BaseModel):
     documents: str | None = None
     notes: str | None = None
     status_updated_at: datetime | None = None
+    follow_up_date: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -91,6 +92,7 @@ class LeadResponse(BaseModel):
             "documents": docs,
             "notes": notes_val,
             "status_updated_at": data.status_updated_at,
+            "follow_up_date": data.follow_up_date if hasattr(data, "follow_up_date") else None,
             "created_at": data.created_at,
             "updated_at": data.updated_at
         }

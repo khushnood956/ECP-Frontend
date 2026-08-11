@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import agencies, auth, leads, scholarships, students, users
+from app.api.v1 import admin, agencies, auth, leads, scholarships, students, users
 
 api_router = APIRouter()
 
@@ -11,5 +11,5 @@ api_router.include_router(
     scholarships.router, prefix="/scholarships", tags=["Scholarships"]
 )
 api_router.include_router(leads.router, prefix="/leads", tags=["Leads"])
-
+api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
 api_router.include_router(auth.router, prefix="/auth", tags=["Auth"])

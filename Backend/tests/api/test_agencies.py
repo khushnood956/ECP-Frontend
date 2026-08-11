@@ -133,6 +133,42 @@ async def test_get_all_agencies():
         assert response.status_code == 200
         assert len(response.json()["data"]) == 2
 
+@pytest.mark.asyncio
+async def test_get_agencies_non_admin_filtering():
+    def get_student_user():
+        return User(id=str(uuid4()), email="student@student.com", is_active=True, role=UserRole.STUDENT)
+    app.dependency_overrides[get_current_active_user] = get_student_user
+
+    with patch('app.services.base.BaseService.list', new_callable=AsyncMock) as mock_list:
+        mock_list.return_value = []
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            # Pass a suspended status. The router should override it to VERIFIED
+            response = await client.get("/api/v1/agencies?verification_status=rejected")
+        
+        # Verify it called list with verification_status = VERIFIED
+        kwargs = mock_list.call_args.kwargs
+        assert kwargs.get("verification_status") == AgencyVerificationStatus.VERIFIED
+        assert response.status_code == 200
+
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+@pytest.mark.asyncio
+async def test_get_agencies_admin_filtering():
+    def get_admin_user():
+        return User(id=str(uuid4()), email="admin@admin.com", is_active=True, role=UserRole.ADMIN)
+    app.dependency_overrides[get_current_active_user] = get_admin_user
+
+    with patch('app.services.base.BaseService.list', new_callable=AsyncMock) as mock_list:
+        mock_list.return_value = []
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/agencies?verification_status=rejected")
+        
+        kwargs = mock_list.call_args.kwargs
+        assert kwargs.get("verification_status") == AgencyVerificationStatus.REJECTED
+        assert response.status_code == 200
+
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
 
 @pytest.mark.asyncio
 async def test_update_agency():
@@ -217,3 +253,128 @@ async def test_non_existing_agency():
             response = await client.get(f"/api/v1/agencies/{agency_id}")
         assert response.status_code == 404
         assert response.json()["error_code"] == "NOT_FOUND"
+
+@pytest.mark.asyncio
+async def test_non_admin_cannot_view_pending_agency():
+    def get_student_user():
+        return User(id=str(uuid4()), email="student@student.com", is_active=True, role=UserRole.STUDENT)
+    app.dependency_overrides[get_current_active_user] = get_student_user
+
+    agency_id = uuid4()
+    with patch('app.services.base.BaseService.get_by_id', new_callable=AsyncMock) as mock_get:
+        mock_agency = MockAgency(agency_id=agency_id)
+        mock_agency.verification_status = AgencyVerificationStatus.PENDING
+        mock_get.return_value = mock_agency
+        
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(f"/api/v1/agencies/{agency_id}")
+        assert response.status_code == 403
+
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+@pytest.mark.asyncio
+async def test_admin_can_view_pending_agency():
+    def get_admin_user():
+        return User(id=str(uuid4()), email="admin@admin.com", is_active=True, role=UserRole.ADMIN)
+    app.dependency_overrides[get_current_active_user] = get_admin_user
+
+    agency_id = uuid4()
+    with patch('app.services.base.BaseService.get_by_id', new_callable=AsyncMock) as mock_get:
+        mock_agency = MockAgency(agency_id=agency_id)
+        mock_agency.verification_status = AgencyVerificationStatus.PENDING
+        mock_get.return_value = mock_agency
+        
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(f"/api/v1/agencies/{agency_id}")
+        assert response.status_code == 200
+
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+
+@pytest.mark.asyncio
+async def test_non_admin_cannot_view_pending_by_registration():
+    def get_student_user():
+        return User(id=str(uuid4()), email="student@student.com", is_active=True, role=UserRole.STUDENT)
+    app.dependency_overrides[get_current_active_user] = get_student_user
+
+    with patch('app.services.agency_service.AgencyService.get_by_registration_number', new_callable=AsyncMock) as mock_get:
+        mock_agency = MockAgency()
+        mock_agency.verification_status = AgencyVerificationStatus.PENDING
+        mock_get.side_effect = PermissionDenied("You do not have permission to view this agency profile.")
+        
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/agencies/registration/REG-1001")
+        assert response.status_code == 403
+
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+@pytest.mark.asyncio
+async def test_non_admin_cannot_view_rejected_by_registration():
+    def get_student_user():
+        return User(id=str(uuid4()), email="student@student.com", is_active=True, role=UserRole.STUDENT)
+    app.dependency_overrides[get_current_active_user] = get_student_user
+
+    with patch('app.services.agency_service.AgencyService.get_by_registration_number', new_callable=AsyncMock) as mock_get:
+        mock_agency = MockAgency()
+        mock_agency.verification_status = AgencyVerificationStatus.REJECTED
+        mock_get.side_effect = PermissionDenied("You do not have permission to view this agency profile.")
+        
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/agencies/registration/REG-1001")
+        assert response.status_code == 403
+
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+@pytest.mark.asyncio
+async def test_non_admin_can_view_verified_by_registration():
+    def get_student_user():
+        return User(id=str(uuid4()), email="student@student.com", is_active=True, role=UserRole.STUDENT)
+    app.dependency_overrides[get_current_active_user] = get_student_user
+
+    with patch('app.services.agency_service.AgencyService.get_by_registration_number', new_callable=AsyncMock) as mock_get:
+        mock_agency = MockAgency()
+        mock_agency.verification_status = AgencyVerificationStatus.VERIFIED
+        mock_get.return_value = mock_agency
+        
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/agencies/registration/REG-1001")
+        assert response.status_code == 200
+        assert response.json()["data"]["verification_status"] == "verified"
+
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+@pytest.mark.asyncio
+async def test_admin_can_view_pending_by_registration():
+    def get_admin_user():
+        return User(id=str(uuid4()), email="admin@admin.com", is_active=True, role=UserRole.ADMIN)
+    app.dependency_overrides[get_current_active_user] = get_admin_user
+
+    with patch('app.services.agency_service.AgencyService.get_by_registration_number', new_callable=AsyncMock) as mock_get:
+        mock_agency = MockAgency()
+        mock_agency.verification_status = AgencyVerificationStatus.PENDING
+        mock_get.return_value = mock_agency
+        
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/agencies/registration/REG-1001")
+        assert response.status_code == 200
+
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+@pytest.mark.asyncio
+async def test_agency_owner_can_view_own_pending_by_registration():
+    agency_owner_user_id = str(uuid4())
+    def get_owner_user():
+        return User(id=agency_owner_user_id, email="owner@agency.com", is_active=True, role=UserRole.AGENCY)
+    app.dependency_overrides[get_current_active_user] = get_owner_user
+
+    with patch('app.services.agency_service.AgencyService.get_by_registration_number', new_callable=AsyncMock) as mock_get:
+        mock_agency = MockAgency(user_id=agency_owner_user_id)
+        mock_agency.verification_status = AgencyVerificationStatus.PENDING
+        mock_get.return_value = mock_agency
+        
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/agencies/registration/REG-1001")
+        assert response.status_code == 200
+
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+

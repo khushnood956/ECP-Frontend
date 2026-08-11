@@ -70,7 +70,20 @@ class LeadService(BaseService[Lead, Any, Any]):
             await self._require_entity(lead_id)
             return await self.repository.update(lead_id, {"follow_up_date": follow_up_date})  # type: ignore
 
-    async def leads_by_student(self, student_id: UUID | str) -> Sequence[Lead]:
+    async def leads_by_student(self, student_id: UUID | str, user: Any = None) -> Sequence[Lead]:
+        if user is not None:
+            from app.models.enums import UserRole
+            if user.role == UserRole.STUDENT:
+                from sqlalchemy import select
+
+                from app.models.student_profile import StudentProfile
+                student_stmt = select(StudentProfile).where(StudentProfile.user_id == str(user.id))
+                result = await self.repository.session.execute(student_stmt)
+                student_profile = result.scalar_one_or_none()
+                if not student_profile or str(student_profile.id) != str(student_id):
+                    raise PermissionDenied("You do not have permission to view these leads.")
+            elif user.role == UserRole.AGENCY:
+                raise PermissionDenied("Use the main leads listing endpoint to view leads for your scholarships.")
         return await self.repository.get_by_student_id(student_id)
 
     async def get_by_id(self, id: UUID, user: Any = None) -> Lead | None:
@@ -106,10 +119,10 @@ class LeadService(BaseService[Lead, Any, Any]):
                     raise PermissionDenied("You do not have permission to view this lead.")
         return lead
 
-    async def list_leads(self, user: Any, pagination: Any) -> Any:
+    async def list_leads(self, user: Any, pagination: Any, filters: list[Any] | None = None) -> Any:
         from app.models.enums import UserRole
         from app.repositories.params import FilterCondition, FilterOperator
-        filters = []
+        filters = filters or []
 
         if user.role == UserRole.STUDENT:
             from sqlalchemy import select

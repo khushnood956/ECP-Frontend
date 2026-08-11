@@ -43,13 +43,42 @@ class AgencyService(BaseService[Agency, Any, Any]):
         )
         return Agency(**data)
 
+    def _check_read_visibility(self, agency: Agency, user: Any = None) -> None:
+        from app.models.enums import AgencyVerificationStatus, UserRole
+        if agency.verification_status == AgencyVerificationStatus.VERIFIED:
+            return
+            
+        if user is not None:
+            if user.role == UserRole.ADMIN:
+                return
+            if str(agency.user_id) == str(user.id):
+                return
+                
+        from app.services.exceptions import PermissionDenied
+        raise PermissionDenied("You do not have permission to view this agency profile.")
+
+    async def get_by_id(self, id: UUID, user: Any = None) -> Agency | None:
+        agency = await super().get_by_id(id)
+        if agency:
+            self._check_read_visibility(agency, user)
+        return agency
+
+    async def get_by_user_id(self, user_id: UUID | str, user: Any = None) -> Agency | None:
+        agency = await self.repository.get_by_user_id(user_id)
+        if agency:
+            self._check_read_visibility(agency, user)
+        return agency
+
     async def get_by_registration_number(
-        self, registration_number: str
+        self, registration_number: str, user: Any = None
     ) -> Agency | None:
         """
         Retrieve an agency by its registration number.
         """
-        return await self.repository.get_by_registration_number(registration_number)
+        agency = await self.repository.get_by_registration_number(registration_number)
+        if agency:
+            self._check_read_visibility(agency, user)
+        return agency
 
     async def verify_agency(self, id: UUID) -> Agency:
         """
