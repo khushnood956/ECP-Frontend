@@ -33,6 +33,7 @@ class MockLead:
         self.status = LeadStatus.NEW
         self.notes = '{"motivation_letter": "I want this scholarship because...", "documents": "cv.pdf", "notes": "Ready to travel."}'
         self.status_updated_at = None
+        self.follow_up_date = None
         self.created_at = "2026-08-07T15:00:00Z"
         self.updated_at = "2026-08-07T15:00:00Z"
 
@@ -100,21 +101,48 @@ async def test_get_lead_by_id():
 
 
 @pytest.mark.asyncio
-async def test_get_lead_list():
-    class MockPaginatedResult:
-        def __init__(self):
-            self.items = [MockLead(), MockLead()]
-            self.total = 2
-            self.page = 1
-            self.page_size = 10
-            self.total_pages = 1
-
+async def test_get_all_leads():
     with patch('app.services.lead_service.LeadService.list_leads', new_callable=AsyncMock) as mock_list:
+        class MockPaginatedResult:
+            def __init__(self):
+                self.items = [MockLead(), MockLead()]
+                self.total = 2
+                self.page = 1
+                self.page_size = 10
+                self.total_pages = 1
         mock_list.return_value = MockPaginatedResult()
+        
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/leads")
+            
         assert response.status_code == 200
         assert len(response.json()["data"]) == 2
+
+@pytest.mark.asyncio
+async def test_get_leads_with_filters():
+    with patch('app.services.lead_service.LeadService.list_leads', new_callable=AsyncMock) as mock_list:
+        class MockPaginatedResult:
+            def __init__(self):
+                self.items = []
+                self.total = 0
+                self.page = 1
+                self.page_size = 10
+                self.total_pages = 0
+        mock_list.return_value = MockPaginatedResult()
+        
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/leads?status=won&scholarship_id=00000000-0000-0000-0000-000000000000")
+            
+        assert response.status_code == 200
+        
+        kwargs = mock_list.call_args.kwargs
+        filters = kwargs.get("filters")
+        assert filters is not None
+        assert len(filters) == 2
+        assert filters[0].field == "status"
+        assert filters[0].value == LeadStatus.WON
+        assert filters[1].field == "scholarship_id"
+        assert filters[1].value == "00000000-0000-0000-0000-000000000000"
 
 
 @pytest.mark.asyncio

@@ -50,7 +50,14 @@ const Login = () => {
     setIsSubmitting(false);
 
     if (result.success) {
-      navigate('/');
+      const role = result.role?.toLowerCase();
+      if (role === 'agency') {
+        navigate('/agency/dashboard');
+      } else if (role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/');
+      }
     } else {
       setApiError(result.error || 'Login failed. Please check your credentials.');
     }
@@ -64,7 +71,7 @@ const Login = () => {
           <span>EduConsultant</span>
         </div>
         <h2 className="auth-title">Welcome back</h2>
-        <p className="auth-subtitle">Sign in to your student account</p>
+        <p className="auth-subtitle">Sign in to your account</p>
 
         {apiError && <div className="alert alert-error">{apiError}</div>}
 

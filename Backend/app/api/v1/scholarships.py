@@ -52,7 +52,7 @@ async def get_active_scholarships(
     current_user: User = Depends(get_current_active_user),
     service: ScholarshipService = Depends(get_scholarship_service),
 ):
-    scholarships = await service.repository.list(is_active=True)
+    scholarships = await service.list_active_scoped(current_user)
     data = [ScholarshipResponse.model_validate(s) for s in scholarships]
     return success_response(
         data=data, message="Active scholarships retrieved successfully"
@@ -79,7 +79,7 @@ async def search_scholarships(
     if funding_type is not None:
         kwargs["funding_type"] = funding_type
 
-    scholarships = await service.search(**kwargs)
+    scholarships = await service.search(current_user, **kwargs)
     data = [ScholarshipResponse.model_validate(s) for s in scholarships]
     return success_response(data=data, message="Scholarships retrieved successfully")
 
@@ -94,7 +94,7 @@ async def get_scholarship(
     current_user: User = Depends(get_current_active_user),
     service: ScholarshipService = Depends(get_scholarship_service),
 ):
-    scholarship = await service.get_by_id(id)
+    scholarship = await service.get_by_id(id, current_user)
     if not scholarship:
         from app.services.exceptions import EntityNotFound
         raise EntityNotFound(f"Scholarship with id {id} not found.")
@@ -117,7 +117,7 @@ async def get_scholarships(
 ):
     from app.repositories.params import PaginationParams
     pagination = PaginationParams(page=page, page_size=page_size)
-    paginated_result = await service.repository.list_paginated(pagination=pagination)
+    paginated_result = await service.list_scholarships(current_user, pagination)
     data = [ScholarshipResponse.model_validate(s) for s in paginated_result.items]
     return success_response(data=data, message="Scholarships retrieved successfully")
 

@@ -1,0 +1,12 @@
+# Standalone portal UI requested to be skipped
+agency-portal/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo

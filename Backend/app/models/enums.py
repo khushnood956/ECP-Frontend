@@ -5,6 +5,20 @@ class UserRole(str, enum.Enum):
     STUDENT = "student"
     AGENCY = "agency"
     ADMIN = "admin"
+    TEACHER = "teacher"
+
+
+class EnrollmentStatus(str, enum.Enum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    COMPLETED = "completed"
+
+
+class AttendanceStatus(str, enum.Enum):
+    PRESENT = "present"
+    ABSENT = "absent"
+    TARDY = "tardy"
+    EXCUSED = "excused"
 
 
 class LeadStatus(str, enum.Enum):

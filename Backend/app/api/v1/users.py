@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.common.schemas.responses import SuccessResponse
 from app.common.utils.responses import success_response
@@ -9,10 +9,33 @@ from app.dependencies.services import get_user_service
 from app.models.enums import UserRole
 from app.models.user import User
 from app.repositories.params import FilterCondition, FilterOperator, PaginationParams
-from app.schemas.user import PaginatedUserResponse, UserResponse, UserUpdate
+from app.schemas.user import PaginatedUserResponse, UserCreate, UserResponse, UserUpdate
 from app.services.user_service import UserService
 
 router = APIRouter()
+
+@router.post(
+    "",
+    response_model=SuccessResponse[UserResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a user (Admin only)",
+    tags=["Admin"],
+)
+async def create_user(
+    user_in: UserCreate,
+    current_user: User = Depends(RequireRole([UserRole.ADMIN])),
+    service: UserService = Depends(get_user_service),
+):
+    try:
+        from app.services.exceptions import BusinessRuleViolation
+        user = await service.create(user_in)
+    except BusinessRuleViolation as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return success_response(
+        data=UserResponse.model_validate(user),
+        message="User created successfully",
+        status_code=201,
+    )
 
 @router.get(
     "", response_model=SuccessResponse[PaginatedUserResponse], summary="Get all users (paginated)", tags=["Admin"]
@@ -78,3 +101,21 @@ async def delete_user(id: UUID, current_user: User = Depends(RequireRole([UserRo
     except EntityNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
     return success_response(message="User deleted successfully")
+
+@router.post(
+    "/{id}/activate", response_model=SuccessResponse[UserResponse], summary="Activate a user", tags=["Admin"]
+)
+async def activate_user(id: UUID, current_user: User = Depends(RequireRole([UserRole.ADMIN])), service: UserService = Depends(get_user_service)):
+    user = await service.activate(id)
+    return success_response(
+        data=UserResponse.model_validate(user), message="User activated successfully"
+    )
+
+@router.post(
+    "/{id}/deactivate", response_model=SuccessResponse[UserResponse], summary="Deactivate a user", tags=["Admin"]
+)
+async def deactivate_user(id: UUID, current_user: User = Depends(RequireRole([UserRole.ADMIN])), service: UserService = Depends(get_user_service)):
+    user = await service.deactivate(id)
+    return success_response(
+        data=UserResponse.model_validate(user), message="User deactivated successfully"
+    )

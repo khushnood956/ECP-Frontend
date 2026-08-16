@@ -25,6 +25,8 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], user_s
         role = payload.get("role")
         if email is None or not isinstance(email, str):
             raise credentials_exception
+        if payload.get("type") == "refresh":
+            raise credentials_exception
         token_data = TokenPayload(sub=email, role=role)
     except InvalidTokenError:
         raise credentials_exception
@@ -35,6 +37,14 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], user_s
     user = await user_service.get_by_email(token_data.sub)
     if user is None:
         raise credentials_exception
+        
+    iat = payload.get("iat")
+    if iat and user.password_changed_at:
+        from datetime import datetime, timezone
+        token_iat = datetime.fromtimestamp(iat, tz=timezone.utc)
+        if token_iat < user.password_changed_at.astimezone(timezone.utc):
+            raise credentials_exception
+            
     return user
 
 async def get_current_active_user(current_user = Depends(get_current_user)):

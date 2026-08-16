@@ -144,6 +144,13 @@ class UserService(BaseService[User, Any, Any]):
                 if hasattr(obj_in, "model_dump")
                 else obj_in.copy() if isinstance(obj_in, dict) else dict(obj_in)
             )
+
+            # Prevent non-admin from modifying is_active
+            if user is not None:
+                from app.models.enums import UserRole
+                if user.role != UserRole.ADMIN:
+                    update_data.pop("is_active", None)
+
             return await self.repository.update(id, update_data)
 
     async def delete(self, id: UUID, user: Any = None) -> bool:

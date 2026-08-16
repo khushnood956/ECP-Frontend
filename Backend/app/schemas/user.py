@@ -19,7 +19,6 @@ class UserCreate(UserBase):
 
 class UserUpdate(BaseModel):
     email: EmailStr | None = None
-    is_active: bool | None = None
 
 
 class UserResponse(UserBase):

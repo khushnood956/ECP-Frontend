@@ -97,6 +97,20 @@ class BaseRepository(IRepository[ModelType], Generic[ModelType]):
                 "Database error during list", details={"error": str(e)}
             ) from e
 
+    async def count(self, **kwargs: Any) -> int:
+        try:
+            stmt = select(func.count()).select_from(self.model)
+            for key, value in kwargs.items():
+                if hasattr(self.model, key):
+                    stmt = stmt.where(getattr(self.model, key) == value)
+            
+            result = await self.session.execute(stmt)
+            return result.scalar_one()
+        except SQLAlchemyError as e:
+            raise RepositoryError(
+                "Database error during count", details={"error": str(e)}
+            ) from e
+
     async def list_paginated(
         self,
         pagination: PaginationParams,

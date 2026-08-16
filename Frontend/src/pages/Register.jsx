@@ -69,7 +69,14 @@ const Register = () => {
     setIsSubmitting(false);
 
     if (result.success) {
-      navigate('/');
+      const role = result.role?.toLowerCase();
+      if (role === 'agency') {
+        navigate('/agency/dashboard');
+      } else if (role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/');
+      }
     } else {
       setApiError(result.error || 'Registration failed. Please try again.');
     }

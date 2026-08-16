@@ -35,6 +35,27 @@ async def create_agency(
 
 
 @router.get(
+    "/me",
+    response_model=SuccessResponse[AgencyResponse],
+    summary="Get current user's agency profile",
+)
+async def get_my_agency(
+    current_user: User = Depends(get_current_active_user),
+    service: AgencyService = Depends(get_agency_service),
+):
+    agency = await service.get_by_user_id(current_user.id, current_user)
+    if not agency:
+        from app.services.exceptions import EntityNotFound
+        raise EntityNotFound(f"Agency profile for user {current_user.id} not found.")
+
+    return success_response(
+        data=AgencyResponse.model_validate(agency),
+        message="Agency retrieved successfully",
+    )
+
+
+
+@router.get(
     "/{id}",
     response_model=SuccessResponse[AgencyResponse],
     summary="Get an agency by ID",
@@ -44,17 +65,13 @@ async def get_agency(
     current_user: User = Depends(get_current_active_user),
     service: AgencyService = Depends(get_agency_service),
 ):
-    agency = await service.get_by_id(id)
-    if not agency and hasattr(service.repository, 'get_by_user_id'):
-        agency = await service.repository.get_by_user_id(id)
+    agency = await service.get_by_id(id, current_user)
+    if not agency and hasattr(service, 'get_by_user_id'):
+        agency = await service.get_by_user_id(id, current_user)
             
     if not agency:
         from app.services.exceptions import EntityNotFound
         raise EntityNotFound(f"Agency with id {id} not found.")
-
-    from fastapi import HTTPException
-    if current_user.role != UserRole.ADMIN and str(agency.user_id) != str(current_user.id):
-        raise HTTPException(status_code=403, detail="Not enough permissions to view this profile.")
 
     return success_response(
         data=AgencyResponse.model_validate(agency),
@@ -70,10 +87,24 @@ async def get_agency(
 async def get_agencies(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
+    verification_status: str | None = None,
     current_user: User = Depends(get_current_active_user),
     service: AgencyService = Depends(get_agency_service),
 ):
-    agencies = await service.list(skip=skip, limit=limit)
+    from app.models.enums import AgencyVerificationStatus
+    if current_user.role != UserRole.ADMIN:
+        verification_status = AgencyVerificationStatus.VERIFIED
+    elif verification_status:
+        try:
+            verification_status = AgencyVerificationStatus(verification_status)
+        except ValueError:
+            verification_status = None
+
+    kwargs = {}
+    if verification_status:
+        kwargs["verification_status"] = verification_status
+
+    agencies = await service.list(skip=skip, limit=limit, **kwargs)
     data = [AgencyResponse.model_validate(a) for a in agencies]
     return success_response(data=data, message="Agencies retrieved successfully")
 
@@ -90,9 +121,9 @@ async def update_agency(
     service: AgencyService = Depends(get_agency_service),
 ):
     target_id = id
-    agency = await service.get_by_id(id)
-    if not agency and hasattr(service.repository, 'get_by_user_id'):
-        agency = await service.repository.get_by_user_id(id)
+    agency = await service.get_by_id(id, current_user)
+    if not agency and hasattr(service, 'get_by_user_id'):
+        agency = await service.get_by_user_id(id, current_user)
         if agency:
             target_id = UUID(agency.id)
                 
@@ -110,9 +141,9 @@ async def delete_agency(
     service: AgencyService = Depends(get_agency_service),
 ):
     target_id = id
-    agency = await service.get_by_id(id)
-    if not agency and hasattr(service.repository, 'get_by_user_id'):
-        agency = await service.repository.get_by_user_id(id)
+    agency = await service.get_by_id(id, current_user)
+    if not agency and hasattr(service, 'get_by_user_id'):
+        agency = await service.get_by_user_id(id, current_user)
         if agency:
             target_id = UUID(agency.id)
                 
@@ -132,9 +163,9 @@ async def verify_agency(
     service: AgencyService = Depends(get_agency_service),
 ):
     target_id = id
-    agency = await service.get_by_id(id)
-    if not agency and hasattr(service.repository, 'get_by_user_id'):
-        agency = await service.repository.get_by_user_id(id)
+    agency = await service.get_by_id(id, current_user)
+    if not agency and hasattr(service, 'get_by_user_id'):
+        agency = await service.get_by_user_id(id, current_user)
         if agency:
             target_id = UUID(agency.id)
                 
@@ -157,9 +188,9 @@ async def suspend_agency(
     service: AgencyService = Depends(get_agency_service),
 ):
     target_id = id
-    agency = await service.get_by_id(id)
-    if not agency and hasattr(service.repository, 'get_by_user_id'):
-        agency = await service.repository.get_by_user_id(id)
+    agency = await service.get_by_id(id, current_user)
+    if not agency and hasattr(service, 'get_by_user_id'):
+        agency = await service.get_by_user_id(id, current_user)
         if agency:
             target_id = UUID(agency.id)
                 
@@ -180,7 +211,7 @@ async def get_agency_by_registration(
     current_user: User = Depends(get_current_active_user),
     service: AgencyService = Depends(get_agency_service),
 ):
-    agency = await service.get_by_registration_number(registration_number)
+    agency = await service.get_by_registration_number(registration_number, current_user)
     if not agency:
         from app.services.exceptions import EntityNotFound
 

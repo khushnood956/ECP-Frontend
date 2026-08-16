@@ -43,6 +43,65 @@ class ScholarshipService(BaseService[Scholarship, Any, Any]):
         )
         return Scholarship(**data)
 
+    async def _get_user_agency_id(self, user: Any) -> str | None:
+        if not user:
+            return None
+        role_str = user.role.value if hasattr(user.role, "value") else str(user.role)
+        if role_str != "agency":
+            return None
+        if hasattr(user, "agency_profile") and user.agency_profile is not None:
+            return str(user.agency_profile.id)
+        try:
+            from sqlalchemy import select
+
+            from app.models.agency import Agency
+            stmt = select(Agency).where(Agency.user_id == str(user.id))
+            result = await self.repository.session.execute(stmt)
+            agency = result.scalar_one_or_none()
+            if agency:
+                if hasattr(agency, "id"):
+                    return str(agency.id)
+                return str(agency)
+        except Exception:  # noqa: BLE001, S110
+            pass
+        return None
+
+    async def _check_read_visibility(self, scholarship: Scholarship, user: Any = None) -> None:
+        from app.models.enums import UserRole
+        from app.services.exceptions import PermissionDenied
+
+        if user is None:
+            raise PermissionDenied("You do not have permission to view this scholarship.")
+
+        if user.role == UserRole.ADMIN:
+            return
+
+        if user.role == UserRole.AGENCY:
+            agency_id = await self._get_user_agency_id(user)
+            # Block access to other agencies' scholarships
+            sch_agency_id = getattr(scholarship, "agency_id", None)
+            if sch_agency_id is not None and (not agency_id or str(sch_agency_id) != str(agency_id)):
+                raise PermissionDenied("You do not have permission to view this scholarship.")
+            return
+
+        # For student / other roles:
+        if scholarship.is_active:
+            return
+
+        raise PermissionDenied("You do not have permission to view this scholarship.")
+
+
+    async def get_by_id(self, id: UUID, user: Any = None) -> Scholarship | None:
+        scholarship = await super().get_by_id(id)
+        if scholarship:
+            await self._check_read_visibility(scholarship, user)
+        return scholarship
+
+    async def list_scholarships(self, user: Any, pagination: PaginationParams) -> PaginatedResult[Scholarship]:
+        own_agency_id = await self._get_user_agency_id(user)
+        return await self.repository.list_scoped(pagination, user.role, own_agency_id)
+
+
 
     async def publish(self, id: UUID, user: Any = None) -> Scholarship:
         """
@@ -102,11 +161,19 @@ class ScholarshipService(BaseService[Scholarship, Any, Any]):
             )
             return await self.repository.update(id, {"is_active": False})  # type: ignore
 
-    async def search(self, **kwargs: Any) -> Sequence[Scholarship]:
+    async def search(self, user: Any, **kwargs: Any) -> Sequence[Scholarship]:
         """
         Search scholarships using arbitrary kwargs filters via repository.
         """
-        return await self.repository.search(**kwargs)
+        own_agency_id = await self._get_user_agency_id(user)
+        return await self.repository.search_scoped(user.role, own_agency_id, **kwargs)
+
+    async def list_active_scoped(self, user: Any) -> Sequence[Scholarship]:
+        """
+        Retrieve a list of all active scholarships scoped by user role.
+        """
+        own_agency_id = await self._get_user_agency_id(user)
+        return await self.repository.list_active_scoped(user.role, own_agency_id)
 
     async def active_scholarships(
         self, pagination: PaginationParams
@@ -115,6 +182,7 @@ class ScholarshipService(BaseService[Scholarship, Any, Any]):
         Retrieve a paginated list of all active scholarships.
         """
         return await self.repository.get_active(pagination)
+
 
     async def create(self, obj_in: Any, user: Any = None) -> Scholarship:
         data = obj_in.model_dump() if hasattr(obj_in, "model_dump") else dict(obj_in)
@@ -166,6 +234,22 @@ class ScholarshipService(BaseService[Scholarship, Any, Any]):
                     from app.services.exceptions import EntityNotFound
                     raise EntityNotFound(f"Agency profile for user {user.id} not found.")
                 data["agency_id"] = str(agency.id)
+            elif user.role == UserRole.ADMIN:
+                target_agency_id = data.get("agency_id")
+                if target_agency_id:
+                    from sqlalchemy import select
+
+                    from app.models.agency import Agency
+                    stmt = select(Agency).where(Agency.id == str(target_agency_id))
+                    result = await self.repository.session.execute(stmt)
+                    agency = result.scalar_one_or_none()
+                    if not agency:
+                        from app.services.exceptions import EntityNotFound
+                        raise EntityNotFound(f"Agency with ID {target_agency_id} not found.")
+                    data["agency_id"] = str(target_agency_id)
+                else:
+                    from app.services.exceptions import BusinessRuleViolation
+                    raise BusinessRuleViolation("Admin must specify agency_id when creating a scholarship.")
         else:
             # Fallback for unit tests that pass dict directly
             agency_id = data.get("agency_id")
@@ -199,6 +283,11 @@ class ScholarshipService(BaseService[Scholarship, Any, Any]):
                         raise PermissionDenied("You do not have permission to update this scholarship.")
 
             data = obj_in.model_dump(exclude_unset=True) if hasattr(obj_in, "model_dump") else dict(obj_in)
+
+            # Prevent mass assignment of sensitive lifecycle and ownership fields
+            data.pop("is_active", None)
+            data.pop("agency_id", None)
+            data.pop("id", None)
 
             # Validate deadline is not in the past
             import datetime

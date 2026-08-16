@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.common.schemas.responses import SuccessResponse
 from app.common.utils.responses import success_response
-from app.dependencies.auth import get_current_active_user
+from app.dependencies.auth import RequireRole, get_current_active_user
 from app.dependencies.services import get_lead_service
-from app.models.enums import LeadStatus
+from app.models.enums import LeadStatus, UserRole
 from app.models.user import User
 from app.schemas.lead import (
     LeadCreate,
@@ -66,12 +66,24 @@ async def get_lead(
 async def get_leads(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
+    status: LeadStatus | None = None,
+    scholarship_id: UUID | None = None,
     current_user: User = Depends(get_current_active_user),
     service: LeadService = Depends(get_lead_service),
 ):
-    from app.repositories.params import PaginationParams
+    from app.repositories.params import (
+        FilterCondition,
+        FilterOperator,
+        PaginationParams,
+    )
     pagination = PaginationParams(page=page, page_size=page_size)
-    paginated_result = await service.list_leads(current_user, pagination)
+    filters = []
+    if status is not None:
+        filters.append(FilterCondition(field="status", operator=FilterOperator.EQ, value=status))
+    if scholarship_id is not None:
+        filters.append(FilterCondition(field="scholarship_id", operator=FilterOperator.EQ, value=str(scholarship_id)))
+    
+    paginated_result = await service.list_leads(current_user, pagination, filters=filters)
     data = [LeadResponse.model_validate(l) for l in paginated_result.items]
     return success_response(data=data, message="Leads retrieved successfully")
 
@@ -114,11 +126,12 @@ async def delete_lead(
     "/{id}/assign-agency",
     response_model=SuccessResponse[LeadResponse],
     summary="Assign an agency to a lead",
+    tags=["Admin"],
 )
 async def assign_agency(
     id: UUID,
     agency_id: UUID,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(RequireRole([UserRole.ADMIN])),
     service: LeadService = Depends(get_lead_service),
 ):
     lead = await service.assign_agency(id, agency_id)
@@ -132,11 +145,12 @@ async def assign_agency(
     "/{id}/status",
     response_model=SuccessResponse[LeadResponse],
     summary="Update lead status",
+    tags=["Admin"],
 )
 async def update_lead_status(
     id: UUID,
     status_update: LeadStatusUpdate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(RequireRole([UserRole.ADMIN])),
     service: LeadService = Depends(get_lead_service),
 ):
     # Mapping request string representation if needed
@@ -164,6 +178,6 @@ async def get_leads_by_student(
     current_user: User = Depends(get_current_active_user),
     service: LeadService = Depends(get_lead_service),
 ):
-    leads = await service.leads_by_student(student_id)
+    leads = await service.leads_by_student(student_id, current_user)
     data = [LeadResponse.model_validate(l) for l in leads]
     return success_response(data=data, message="Leads retrieved successfully")

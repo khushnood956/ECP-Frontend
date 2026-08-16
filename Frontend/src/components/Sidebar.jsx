@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }) => {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -15,14 +15,33 @@ const Sidebar = ({ isOpen, onClose }) => {
     navigate('/login');
   };
 
-  const navItems = [
-    { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/scholarships', label: 'Scholarships', icon: Search },
-    { path: '/universities', label: 'Universities', icon: Building },
-    { path: '/applications', label: 'My Applications', icon: FileText },
-    { path: '/documents', label: 'Documents', icon: FileText },
-    { path: '/profile', label: 'My Profile', icon: User },
-  ];
+  const getNavItems = () => {
+    const role = user?.role?.toLowerCase();
+    if (role === 'agency') {
+      return [
+        { path: '/agency/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { path: '/agency/profile', label: 'Agency Profile', icon: Building },
+        { path: '/agency/scholarships', label: 'Scholarships', icon: GraduationCap },
+        { path: '/agency/leads', label: 'Leads', icon: User },
+      ];
+    } else if (role === 'admin') {
+      return [
+        { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      ];
+    } else {
+      // Default: student
+      return [
+        { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+        { path: '/scholarships', label: 'Scholarships', icon: Search },
+        { path: '/universities', label: 'Universities', icon: Building },
+        { path: '/applications', label: 'My Applications', icon: FileText },
+        { path: '/documents', label: 'Documents', icon: FileText },
+        { path: '/profile', label: 'My Profile', icon: User },
+      ];
+    }
+  };
+
+  const navItems = getNavItems();
 
   return (
     <div className={`sidebar ${isOpen ? 'open' : ''}`}>

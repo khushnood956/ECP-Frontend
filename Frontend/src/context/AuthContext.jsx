@@ -1,6 +1,7 @@
 /* eslint-disable react/only-export-components */
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { api } from '../services/api';
+import { jwtDecode } from 'jwt-decode';
+import { AuthAPI } from '../services/api/auth.api';
 
 const AuthContext = createContext(null);
 
@@ -9,19 +10,19 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      const token = localStorage.getItem('educonsultant_token');
+    const initializeAuth = () => {
+      const token = localStorage.getItem('access_token');
       if (token) {
         try {
-          const profile = await api.getCurrentUser(token);
-          if (profile) {
-            setUser(profile);
-          } else {
-            localStorage.removeItem('educonsultant_token');
-          }
+          const decoded = jwtDecode(token);
+          setUser({
+            sub: decoded.sub,
+            role: decoded.role
+          });
         } catch (error) {
           console.error('Failed to restore session:', error);
-          localStorage.removeItem('educonsultant_token');
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
         }
       }
       setLoading(false);
@@ -32,47 +33,60 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const data = await api.login(email, password);
-      setUser(data.user);
-      localStorage.setItem('educonsultant_token', data.token);
-      return { success: true };
+      const params = new URLSearchParams();
+      params.append('username', email);
+      params.append('password', password);
+
+      const data = await AuthAPI.login(params);
+      
+      localStorage.setItem('access_token', data.access_token);
+      localStorage.setItem('refresh_token', data.refresh_token);
+      
+      const decoded = jwtDecode(data.access_token);
+      const userProfile = {
+        sub: decoded.sub,
+        role: decoded.role
+      };
+      
+      setUser(userProfile);
+      return { success: true, role: decoded.role };
     } catch (error) {
       setUser(null);
-      localStorage.removeItem('educonsultant_token');
-      return { success: false, error: error.message };
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      return { 
+        success: false, 
+        error: error.response?.data?.detail || error.message || 'Login failed. Please check your credentials.' 
+      };
     }
   };
 
   const register = async (userData) => {
     try {
-      const data = await api.register(userData);
-      setUser(data.user);
-      localStorage.setItem('educonsultant_token', data.token);
-      return { success: true };
+      // Backend /register endpoint takes JSON payload UserCreate: email, password, role
+      const payload = {
+        email: userData.email,
+        password: userData.password,
+        role: userData.role || 'student'
+      };
+      
+      const { apiClient } = await import('../services/api/apiClient');
+      await apiClient.post('/auth/register', payload);
+      
+      // Auto login after registration
+      return await login(userData.email, userData.password);
     } catch (error) {
-      setUser(null);
-      localStorage.removeItem('educonsultant_token');
-      return { success: false, error: error.message };
+      return { 
+        success: false, 
+        error: error.response?.data?.detail || error.message || 'Registration failed.' 
+      };
     }
   };
 
   const logout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     setUser(null);
-    localStorage.removeItem('educonsultant_token');
-  };
-
-  const updateProfile = async (newData) => {
-    const token = localStorage.getItem('educonsultant_token');
-    if (!token) return { success: false, error: 'No active session' };
-    
-    try {
-      const data = await api.updateProfile(token, newData);
-      setUser(data.user);
-      localStorage.setItem('educonsultant_token', data.token);
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
   };
 
   const value = {
@@ -81,8 +95,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     register,
-    logout,
-    updateProfile
+    logout
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
