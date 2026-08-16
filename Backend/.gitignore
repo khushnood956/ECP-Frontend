@@ -43,6 +43,9 @@ ecp/
 # Environment variables
 .env
 .env.local
+.env.*.local
+!.env.example
+!.env.test
 
 # Testing
 .pytest_cache/
@@ -52,14 +55,11 @@ htmlcov/
 nosetests.xml
 coverage.xml
 
-# macOS
+# OS
 .DS_Store
+Thumbs.db
 
-Extras
-Documentation
-# Temporary scripts
-create_auth.py
-
-
-.env.test
-
+# Logs & Temp
+*.log
+*.tmp
+*.temp

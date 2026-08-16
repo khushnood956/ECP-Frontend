@@ -1,12 +1,11 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.common.schemas.responses import SuccessResponse
 from app.common.utils.responses import success_response
-from app.dependencies.auth import RequireRole, get_current_active_user
+from app.dependencies.auth import get_current_active_user
 from app.dependencies.services import get_student_service
-from app.models.enums import UserRole
 from app.models.user import User
 from app.repositories.params import PaginationParams
 from app.schemas.student import StudentCreate, StudentResponse, StudentUpdate
@@ -25,11 +24,7 @@ async def create_student(
     current_user: User = Depends(get_current_active_user),
     service: StudentService = Depends(get_student_service)
 ):
-    if current_user.role != UserRole.STUDENT:
-        raise HTTPException(status_code=403, detail="Only students can create student profiles.")
-    if str(student_in.user_id) != str(current_user.id) and current_user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Cannot create profile for another user.")
-    student = await service.create(student_in)
+    student = await service.create(student_in, current_user)
     return success_response(
         data=StudentResponse.model_validate(student),
         message="Student created successfully",
@@ -47,16 +42,10 @@ async def get_student(
     current_user: User = Depends(get_current_active_user),
     service: StudentService = Depends(get_student_service)
 ):
-    student = await service.get_by_id(id)
-    if not student:
-        student = await service.get_by_user_id(id)
-        
+    student = await service.get_by_id_scoped(id, current_user)
     if not student:
         from app.services.exceptions import EntityNotFound
         raise EntityNotFound(f"Student profile with id {id} not found.")
-        
-    if current_user.role == UserRole.STUDENT and str(student.user_id) != str(current_user.id):
-        raise HTTPException(status_code=403, detail="Not enough permissions to view this profile.")
         
     return success_response(
         data=StudentResponse.model_validate(student),
@@ -72,12 +61,11 @@ async def get_student(
 async def get_students(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
-    current_user: User = Depends(RequireRole([UserRole.ADMIN, UserRole.AGENCY])),
+    current_user: User = Depends(get_current_active_user),
     service: StudentService = Depends(get_student_service),
 ):
-    # Using existing repository architecture for pagination
     pagination = PaginationParams(page=page, page_size=page_size)
-    paginated_result = await service.repository.list_paginated(pagination=pagination)
+    paginated_result = await service.list_student_profiles(current_user, pagination)
     data = [StudentResponse.model_validate(s) for s in paginated_result.items]
     return success_response(data=data, message="Students retrieved successfully")
 

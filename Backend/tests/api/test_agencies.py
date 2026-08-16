@@ -378,3 +378,29 @@ async def test_agency_owner_can_view_own_pending_by_registration():
 
     app.dependency_overrides[get_current_active_user] = override_get_current_active_user
 
+
+@pytest.mark.asyncio
+async def test_get_my_agency_success():
+    with patch('app.services.agency_service.AgencyService.get_by_user_id', new_callable=AsyncMock) as mock_get:
+        mock_agency = MockAgency(user_id=TEST_AGENCY_USER_ID)
+        mock_agency.verification_status = AgencyVerificationStatus.PENDING
+        mock_get.return_value = mock_agency
+        
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/agencies/me")
+        
+        assert response.status_code == 200
+        assert response.json()["data"]["user_id"] == TEST_AGENCY_USER_ID
+
+
+@pytest.mark.asyncio
+async def test_get_my_agency_not_found():
+    with patch('app.services.agency_service.AgencyService.get_by_user_id', new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = None
+        
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/agencies/me")
+        
+        assert response.status_code == 404
+
+

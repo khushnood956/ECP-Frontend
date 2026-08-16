@@ -35,6 +35,27 @@ async def create_agency(
 
 
 @router.get(
+    "/me",
+    response_model=SuccessResponse[AgencyResponse],
+    summary="Get current user's agency profile",
+)
+async def get_my_agency(
+    current_user: User = Depends(get_current_active_user),
+    service: AgencyService = Depends(get_agency_service),
+):
+    agency = await service.get_by_user_id(current_user.id, current_user)
+    if not agency:
+        from app.services.exceptions import EntityNotFound
+        raise EntityNotFound(f"Agency profile for user {current_user.id} not found.")
+
+    return success_response(
+        data=AgencyResponse.model_validate(agency),
+        message="Agency retrieved successfully",
+    )
+
+
+
+@router.get(
     "/{id}",
     response_model=SuccessResponse[AgencyResponse],
     summary="Get an agency by ID",

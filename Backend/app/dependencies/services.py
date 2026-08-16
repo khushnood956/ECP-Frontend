@@ -90,3 +90,49 @@ def get_admin_service(
         scholarship_repo=scholarship_repo,
         lead_repo=lead_repo
     )
+
+from app.dependencies.repositories import (
+    get_attendance_repository,
+    get_class_repository,
+    get_enrollment_repository,
+)
+from app.repositories.attendance_repository import AttendanceRepository
+from app.repositories.class_repository import ClassRepository
+from app.repositories.enrollment_repository import EnrollmentRepository
+from app.services.attendance_service import AttendanceService
+from app.services.class_service import ClassService
+from app.services.enrollment_service import EnrollmentService
+
+
+def get_class_service(
+    repository: ClassRepository = Depends(get_class_repository),
+    transaction_manager: TransactionManager = Depends(get_transaction_manager),
+) -> ClassService:
+    return ClassService(repository=repository, transaction_manager=transaction_manager)
+
+
+def get_enrollment_service(
+    repository: EnrollmentRepository = Depends(get_enrollment_repository),
+    transaction_manager: TransactionManager = Depends(get_transaction_manager),
+) -> EnrollmentService:
+    return EnrollmentService(repository=repository, transaction_manager=transaction_manager)
+
+
+def get_attendance_service(
+    repository: AttendanceRepository = Depends(get_attendance_repository),
+    transaction_manager: TransactionManager = Depends(get_transaction_manager),
+) -> AttendanceService:
+    return AttendanceService(repository=repository, transaction_manager=transaction_manager)
+
+
+from app.dependencies.repositories import get_university_repository
+from app.repositories.university_repository import UniversityRepository
+from app.services.university_service import UniversityService
+
+def get_university_service(
+    repository: UniversityRepository = Depends(get_university_repository),
+    transaction_manager: TransactionManager = Depends(get_transaction_manager),
+) -> UniversityService:
+    """Provides a fully initialized UniversityService."""
+    return UniversityService(repository=repository, transaction_manager=transaction_manager)
+

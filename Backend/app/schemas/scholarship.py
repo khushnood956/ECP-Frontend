@@ -22,7 +22,7 @@ class ScholarshipBase(BaseModel):
 
 
 class ScholarshipCreate(ScholarshipBase):
-    pass
+    agency_id: str | None = None
 
 
 class ScholarshipUpdate(BaseModel):
@@ -37,11 +37,11 @@ class ScholarshipUpdate(BaseModel):
     eligibility: str | None = None
     description: str | None = None
     application_link: str | None = None
-    is_active: bool | None = None
 
 
 class ScholarshipResponse(ScholarshipBase):
     id: UUID
+    agency_id: str | None = None
     created_at: datetime
     updated_at: datetime
 

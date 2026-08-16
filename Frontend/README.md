@@ -1,16 +1,82 @@
-# React + Vite
+# EduConsultant Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A premium, modern React 19 + Vite client application for the EduConsultant platform. This portal features a beautiful, fluid, function-driven design tailored for both Students and Agencies, featuring smooth transitions, clean typography, and a green-accented SaaS theme.
 
-Currently, two official plugins are available:
+## Tech Stack
+- **Framework**: React 19
+- **Build Tool**: Vite
+- **Routing**: React Router DOM (v7)
+- **State & Data Fetching**: TanStack React Query (v5)
+- **Styling**: Vanilla CSS with custom utility variables (`index.css`)
+- **Testing**: Playwright & Vitest ready
+- **Code Quality**: Oxlint
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## Key Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 👨‍🎓 Student Portal
+- **Dashboard**: High-level summary of applications, documents, deadlines, and personalized notifications.
+- **Scholarship & University Search**: Multi-filter discovery interface allowing students to find scholarships, courses, and institutions based on country, eligibility, and fields of study.
+- **Detailed Profiles**: Rich dynamic pages for each university and scholarship opportunity.
+- **Application Tracking**: Transparent visual timeline tracking each application from submission, to review, offer, and visa stages.
+- **Document Hub**: Fully integrated upload, status tracking, and deletion manager for academic and identity documents.
 
-## Expanding the Oxlint configuration
+### 🏢 Agency Portal
+- **Agency Dashboard**: Track student leads, registration statuses, and ongoing scholarship applications.
+- **Leads Management**: Detailed logs, qualification status changes, and pipeline tracking for all incoming student prospects.
+- **Scholarships Creation/Editing**: Directly publish and update scholarship programs available through the agency.
+- **Profile Customization**: Detailed agency profiles, branding configurations, and credential reviews.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+---
+
+## Directory Structure
+
+```
+Frontend/
+├── public/                 # Static assets
+├── src/
+│   ├── assets/             # Images and local SVGs
+│   ├── components/         # Reusable presentation and layout components (Sidebar, Topbar, Layout)
+│   │   └── shared/         # Common inputs, buttons, cards, skeletons, and route guards (RoleGuard)
+│   ├── context/            # AuthContext and AppContext for state management
+│   ├── hooks/              # Custom React hooks (useLeads, useCurrentAgency, etc.)
+│   ├── pages/              # Primary page views (Dashboard, Login, Register, Profile, etc.)
+│   │   └── agency/         # Specialized pages for Agency accounts
+│   ├── services/           # API integration clients (using Axios/Fetch)
+│   ├── utils/              # Helper functions
+│   ├── App.jsx             # Router definition and context provider wrapping
+│   ├── index.css           # Global CSS variables, design tokens, and core styling
+│   └── main.jsx            # Application entry point
+├── tests/                  # Integration and unit tests
+└── vite.config.js          # Vite configurations
+```
+
+---
+
+## Getting Started
+
+### 1. Install Dependencies
+Make sure you have Node.js 18+ installed. Run:
+```bash
+npm install
+```
+
+### 2. Start the Development Server
+```bash
+npm run dev
+```
+The application will launch on [http://localhost:5173](http://localhost:5173).
+
+### 3. Production Build
+To build the application for production deployment:
+```bash
+npm run build
+```
+The output files will be built into the `dist/` directory.
+
+### 4. Running Linting
+To check code quality and formatting rules:
+```bash
+npx oxlint
+```
