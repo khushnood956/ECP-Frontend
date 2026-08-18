@@ -36,7 +36,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
  
-    --primary: 150 59% 43.7%; /* EduConsultant Brand Green (#2db06f) */
+    --primary: 150 59% 43.7%; /* Edutant Brand Green (#2db06f) */
     --primary-foreground: 355.7 100% 97.3%;
  
     --secondary: 210 40% 96.1%;
@@ -606,3 +606,99 @@ body {
     padding: 1rem;
   }
 }
+
+/* Polish subtle animations & micro-interactions */
+@media (prefers-reduced-motion: no-preference) {
+  /* Page transitions */
+  .dashboard-content {
+    animation: fadeSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Widget/Card subtle lift */
+  .widget, .stat-card {
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+  }
+  .widget:hover, .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Form Inputs subtle border/ring transition */
+  .form-input, .search-bar {
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .form-input:focus {
+    border-color: var(--primary-green);
+    box-shadow: 0 0 0 2px var(--primary-green-light);
+  }
+
+  /* Navigation Item subtle scaling */
+  .nav-item {
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  }
+  .nav-item:active {
+    transform: scale(0.98);
+  }
+
+  /* Button active pressed states and hover transitions */
+  .btn {
+    transition: background-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  }
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+  .btn:active {
+    transform: translateY(0) scale(0.97);
+  }
+
+  /* Dialogs Small Fade & Scale */
+  .modal-overlay {
+    animation: fadeIn 0.15s ease forwards;
+  }
+  .modal-content {
+    animation: scaleIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes edutantPulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.85; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes edutantSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes edutantFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+

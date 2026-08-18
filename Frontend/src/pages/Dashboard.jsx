@@ -1,15 +1,44 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAppContext } from '../context/AppContext';
+import { useStudentLeads } from '../hooks/useLeads';
+import { useStudentDocuments } from '../hooks/useDocuments';
+import { useStudentBookmarks } from '../hooks/useBookmarks';
 import { 
   User, Search, FileText, CheckCircle, Clock, TrendingUp
 } from 'lucide-react';
 
-const Dashboard = () => {
-  const { scholarships, applications, documents } = useAppContext();
+const mapStatus = (status) => {
+  const mapping = {
+    'submitted': 'Submitted',
+    'under_review': 'In Review',
+    'accepted': 'Accepted',
+    'rejected': 'Rejected'
+  };
+  return mapping[status] || status;
+};
 
-  const savedScholarshipsCount = scholarships.filter(s => s.bookmarked).length;
-  const activeApplicationsCount = applications.filter(a => a.status !== 'Accepted' && a.status !== 'Rejected').length;
+const getStatusStyles = (status) => {
+  switch (status) {
+    case 'Submitted':
+      return { color: 'var(--primary-green)', background: 'var(--primary-green-light)' };
+    case 'In Review':
+      return { color: '#eab308', background: '#fef9c3' };
+    case 'Accepted':
+      return { color: 'var(--primary-green)', background: 'var(--primary-green-light)' };
+    case 'Rejected':
+      return { color: '#ef4444', background: '#fee2e2' };
+    default:
+      return { color: 'var(--text-gray)', background: 'var(--bg-gray)' };
+  }
+};
+
+const Dashboard = () => {
+  const { data: leads, isLoading } = useStudentLeads();
+  const { data: documents = [] } = useStudentDocuments();
+  const { data: bookmarks = [] } = useStudentBookmarks();
+
+  const savedScholarshipsCount = bookmarks.filter(b => b.bookmark_type === 'scholarship').length;
+  const activeApplicationsCount = (leads || []).filter(a => a.status !== 'accepted' && a.status !== 'rejected').length;
   const verifiedDocsCount = documents.filter(d => d.verified).length;
   const totalDocsCount = documents.length;
 
@@ -44,7 +73,7 @@ const Dashboard = () => {
             Active Applications
             <div className="icon-wrapper"><FileText size={18} /></div>
           </div>
-          <div className="stat-value">{activeApplicationsCount}</div>
+          <div className="stat-value">{isLoading ? '...' : activeApplicationsCount}</div>
           <div className="stat-trend positive">Stay updated</div>
         </div>
         <div className="stat-card">
@@ -74,23 +103,35 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {applications.slice(0, 3).map(a => (
-                  <tr key={a.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '1rem 0', whiteSpace: 'nowrap', paddingRight: '1rem' }}>{a.university}</td>
-                    <td style={{ padding: '1rem 0', whiteSpace: 'nowrap', paddingRight: '1rem' }}>{a.program}</td>
-                    <td style={{ padding: '1rem 0', whiteSpace: 'nowrap', paddingRight: '1rem' }}>{a.intake}</td>
-                    <td style={{ padding: '1rem 0', whiteSpace: 'nowrap' }}>
-                      <span style={{ 
-                        color: a.status === 'Submitted' ? 'var(--primary-green)' : '#eab308', 
-                        background: a.status === 'Submitted' ? 'var(--primary-green-light)' : '#fef9c3', 
-                        padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem' 
-                      }}>
-                        {a.status}
-                      </span>
-                    </td>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="4" style={{ padding: '1rem 0' }}>Loading recent applications...</td>
                   </tr>
-                ))}
-                {applications.length === 0 && <tr><td colSpan="4" style={{ padding: '1rem 0' }}>No applications yet.</td></tr>}
+                ) : (
+                  (leads || []).slice(0, 3).map(a => {
+                    const uiStatus = mapStatus(a.status);
+                    const styles = getStatusStyles(uiStatus);
+                    return (
+                      <tr key={a.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '1rem 0', whiteSpace: 'nowrap', paddingRight: '1rem' }}>{a.scholarship_university || '—'}</td>
+                        <td style={{ padding: '1rem 0', whiteSpace: 'nowrap', paddingRight: '1rem' }}>{a.scholarship_title || '—'}</td>
+                        <td style={{ padding: '1rem 0', whiteSpace: 'nowrap', paddingRight: '1rem' }}>—</td>
+                        <td style={{ padding: '1rem 0', whiteSpace: 'nowrap' }}>
+                          <span style={{ 
+                            color: styles.color, 
+                            background: styles.background, 
+                            padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem' 
+                          }}>
+                            {uiStatus}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+                {!isLoading && (!leads || leads.length === 0) && (
+                  <tr><td colSpan="4" style={{ padding: '1rem 0' }}>No applications yet.</td></tr>
+                )}
               </tbody>
             </table>
           </div>

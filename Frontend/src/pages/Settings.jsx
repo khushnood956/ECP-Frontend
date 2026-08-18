@@ -5,7 +5,7 @@ const Settings = () => {
   const { user, updateProfile } = useAuth();
   const [formData, setFormData] = useState({
     name: user?.name || '',
-    email: user?.email || '',
+    email: user?.sub || user?.email || '',
     notificationsEmail: true,
     notificationsSMS: false
   });

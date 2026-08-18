@@ -2,13 +2,17 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
 import { Bell, Mail, Search, User, Menu } from 'lucide-react';
+import { useStudentNotifications, useMarkNotificationRead } from '../hooks/useNotifications';
+import { formatDateTime } from '../utils/formatters';
 
 const Topbar = ({ toggleSidebar }) => {
   const { user } = useAuth();
-  const { searchQuery, setSearchQuery, notifications, markNotificationRead } = useAppContext();
+  const { searchQuery, setSearchQuery } = useAppContext();
+  const { data: notifications = [] } = useStudentNotifications();
+  const markReadMutation = useMarkNotificationRead();
   const [showNotifications, setShowNotifications] = useState(false);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
     <div className="topbar">
@@ -38,13 +42,13 @@ const Topbar = ({ toggleSidebar }) => {
             <div className="dropdown-menu notifications-dropdown">
               <h4 style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)', margin: 0 }}>Notifications</h4>
               <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                {notifications.map(n => (
-                  <div key={n.id} style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)', background: n.read ? 'transparent' : 'var(--bg-gray)' }}>
+                 {notifications.map(n => (
+                  <div key={n.id} style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)', background: n.is_read ? 'transparent' : 'var(--bg-gray)' }}>
                     <h5 style={{ fontSize: '0.875rem', margin: '0 0 0.25rem' }}>{n.title}</h5>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-gray)', margin: '0 0 0.25rem' }}>{n.message}</p>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-gray)' }}>{n.time}</span>
-                    {!n.read && (
-                      <button onClick={() => markNotificationRead(n.id)} style={{ background: 'none', border: 'none', color: 'var(--primary-green)', fontSize: '0.75rem', display: 'block', marginTop: '0.25rem', cursor: 'pointer' }}>Mark as read</button>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-gray)' }}>{formatDateTime(n.created_at)}</span>
+                    {!n.is_read && (
+                      <button onClick={() => markReadMutation.mutate(n.id)} style={{ background: 'none', border: 'none', color: 'var(--primary-green)', fontSize: '0.75rem', display: 'block', marginTop: '0.25rem', cursor: 'pointer' }} disabled={markReadMutation.isPending}>Mark as read</button>
                     )}
                   </div>
                 ))}
@@ -53,9 +57,6 @@ const Topbar = ({ toggleSidebar }) => {
             </div>
           )}
         </div>
-        <button className="icon-btn hide-mobile">
-          <Mail size={20} />
-        </button>
         <div className="user-profile">
           {user?.profileImg ? (
             <img src={user.profileImg} alt={user.name} className="avatar" />

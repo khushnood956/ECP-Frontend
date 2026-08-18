@@ -18,3 +18,5 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     role: str = "student"
+    first_name: str | None = None
+    last_name: str | None = None

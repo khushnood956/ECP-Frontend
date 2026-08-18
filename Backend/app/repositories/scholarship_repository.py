@@ -1,10 +1,13 @@
 from collections.abc import Sequence
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.scholarship import Scholarship
 from app.repositories.base import BaseRepository
+from app.repositories.exceptions import RepositoryError
 from app.repositories.params import (
     FilterCondition,
     FilterOperator,
@@ -16,6 +19,14 @@ from app.repositories.params import (
 class ScholarshipRepository(BaseRepository[Scholarship]):
     def __init__(self, session: AsyncSession):
         super().__init__(model=Scholarship, session=session)
+
+    def _query_options(self):
+        return (selectinload(self.model.application_requirements),)
+
+    async def get_by_id(self, id):
+        stmt = select(self.model).where(self.model.id == str(id)).options(*self._query_options())
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def get_active(
         self, pagination: PaginationParams
@@ -39,7 +50,7 @@ class ScholarshipRepository(BaseRepository[Scholarship]):
 
         from sqlalchemy import and_, func, or_, select
         
-        stmt = select(self.model)
+        stmt = select(self.model).options(*self._query_options())
         count_stmt = select(func.count()).select_from(self.model)
         
         from app.models.enums import UserRole
@@ -83,6 +94,93 @@ class ScholarshipRepository(BaseRepository[Scholarship]):
             total_pages=total_pages,
         )
 
+    async def list_paginated(
+        self,
+        pagination: PaginationParams,
+        sort: Any | None = None,
+        filters: list[FilterCondition] | None = None,
+    ) -> PaginatedResult[Scholarship]:
+        import math
+
+        from sqlalchemy import asc, desc, func, select
+
+        stmt = select(self.model).options(*self._query_options())
+        count_stmt = select(func.count()).select_from(self.model)
+
+        if filters:
+            for f in filters:
+                if not hasattr(self.model, f.field):
+                    raise RepositoryError(
+                        f"Field {f.field} does not exist on {self.model.__name__}"
+                    )
+
+                column = getattr(self.model, f.field)
+
+                if f.operator == FilterOperator.EQ:
+                    condition = column == f.value
+                elif f.operator == FilterOperator.NE:
+                    condition = column != f.value
+                elif f.operator == FilterOperator.GT:
+                    condition = column > f.value
+                elif f.operator == FilterOperator.GTE:
+                    condition = column >= f.value
+                elif f.operator == FilterOperator.LT:
+                    condition = column < f.value
+                elif f.operator == FilterOperator.LTE:
+                    condition = column <= f.value
+                elif f.operator == FilterOperator.IN:
+                    if not isinstance(f.value, list):
+                        raise RepositoryError(
+                            f"Value for IN operator must be a list for field {f.field}"
+                        )
+                    condition = column.in_(f.value)
+                elif f.operator == FilterOperator.LIKE:
+                    condition = column.ilike(f"%{f.value}%")
+                elif f.operator == FilterOperator.IS_NULL:
+                    condition = column.is_(None) if f.value else column.is_not(None)
+                else:
+                    raise RepositoryError(
+                        f"Unsupported filter operator {f.operator}"
+                    )
+
+                stmt = stmt.where(condition)
+                count_stmt = count_stmt.where(condition)
+
+        if sort and sort.sort_by:
+            if not hasattr(self.model, sort.sort_by):
+                raise RepositoryError(
+                    f"Sort field {sort.sort_by} does not exist on {self.model.__name__}"
+                )
+
+            sort_col = getattr(self.model, sort.sort_by)
+            if sort.sort_order == "desc":
+                stmt = stmt.order_by(desc(sort_col))
+            else:
+                stmt = stmt.order_by(asc(sort_col))
+
+        total_result = await self.session.execute(count_stmt)
+        total = total_result.scalar_one()
+
+        offset = (pagination.page - 1) * pagination.page_size
+        stmt = stmt.offset(offset).limit(pagination.page_size)
+
+        result = await self.session.execute(stmt)
+        items = list(result.scalars().all())
+
+        total_pages = (
+            math.ceil(total / pagination.page_size)
+            if pagination.page_size > 0
+            else 0
+        )
+
+        return PaginatedResult(
+            items=items,
+            total=total,
+            page=pagination.page,
+            page_size=pagination.page_size,
+            total_pages=total_pages,
+        )
+
     async def list_active_scoped(
         self,
         user_role: str,
@@ -92,7 +190,7 @@ class ScholarshipRepository(BaseRepository[Scholarship]):
 
         from app.models.enums import UserRole
         
-        stmt = select(self.model).where(self.model.is_active == True)
+        stmt = select(self.model).where(self.model.is_active == True).options(*self._query_options())
         if user_role == UserRole.ADMIN:
             pass
         elif user_role == UserRole.AGENCY:
@@ -120,7 +218,7 @@ class ScholarshipRepository(BaseRepository[Scholarship]):
 
         from app.models.enums import UserRole
         
-        stmt = select(self.model)
+        stmt = select(self.model).options(*self._query_options())
         for key, value in kwargs.items():
             if hasattr(self.model, key) and value is not None:
                 stmt = stmt.where(getattr(self.model, key) == value)

@@ -48,6 +48,14 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = "INFO"
 
+    # AWS S3 Settings
+    AWS_ACCESS_KEY_ID: str | None = None
+    AWS_SECRET_ACCESS_KEY: str | None = None
+    AWS_REGION: str = "us-east-1"
+    AWS_S3_BUCKET: str = "educonsultant-documents"
+    S3_PRESIGNED_EXPIRY: int = 3600
+    MAX_UPLOAD_SIZE_MB: int = 10
+
     model_config = SettingsConfigDict(
         env_file=".env", case_sensitive=True, env_file_encoding="utf-8", extra="ignore"
     )

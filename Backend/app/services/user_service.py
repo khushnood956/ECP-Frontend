@@ -110,11 +110,13 @@ class UserService(BaseService[User, Any, Any]):
             role_val = data.get("role")
             if role_val and (role_val == "student" or role_val == "STUDENT"):
                 from app.models.student_profile import StudentProfile
+                first_name = data.get("first_name") or "New"
+                last_name = data.get("last_name") or "Student"
                 sp = StudentProfile(
                     id=str(uuid.uuid4()),
                     user_id=created_user.id,
-                    first_name="New",
-                    last_name="Student"
+                    first_name=first_name,
+                    last_name=last_name
                 )
                 self.transaction_manager.session.add(sp)
             elif role_val and (role_val == "agency" or role_val == "AGENCY"):

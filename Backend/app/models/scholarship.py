@@ -42,6 +42,9 @@ class Scholarship(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     leads = relationship(
         "Lead", back_populates="scholarship", cascade="all, delete-orphan"
     )
+    application_requirements = relationship(
+        "ScholarshipApplicationRequirement", back_populates="scholarship", cascade="all, delete-orphan", lazy="selectin"
+    )
 
     def __repr__(self) -> str:
         return f"<Scholarship {self.title} ({self.country})>"

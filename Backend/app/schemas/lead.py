@@ -31,6 +31,7 @@ class LeadCreate(BaseModel):
     motivation_letter: str | None = None
     notes: str | None = None
     documents: str | None = None
+    application_responses: list[dict] | None = None
 
 
 class LeadUpdate(BaseModel):
@@ -60,10 +61,13 @@ class LeadResponse(BaseModel):
     motivation_letter: str | None = None
     documents: str | None = None
     notes: str | None = None
+    scholarship_title: str | None = None
+    scholarship_university: str | None = None
     status_updated_at: datetime | None = None
     follow_up_date: datetime | None = None
     created_at: datetime
     updated_at: datetime
+    application_responses: list[dict] | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -82,6 +86,23 @@ class LeadResponse(BaseModel):
 
         mot_let, docs, notes_val = parse_notes_field(data.notes)
 
+        sch_title = None
+        sch_univ = None
+        if hasattr(data, "scholarship") and data.scholarship is not None:
+            sch_title = data.scholarship.title
+            sch_univ = data.scholarship.university
+
+        app_responses = None
+        if hasattr(data, "application_responses") and data.application_responses is not None:
+            app_responses = []
+            for resp in data.application_responses:
+                app_responses.append({
+                    "id": resp.id,
+                    "requirement_id": resp.requirement_id,
+                    "value": resp.value,
+                    "file_url": resp.file_url,
+                })
+
         return {
             "id": data.id,
             "student_id": UUID(data.student_id) if isinstance(data.student_id, str) else data.student_id,
@@ -94,7 +115,11 @@ class LeadResponse(BaseModel):
             "status_updated_at": data.status_updated_at,
             "follow_up_date": data.follow_up_date if hasattr(data, "follow_up_date") else None,
             "created_at": data.created_at,
-            "updated_at": data.updated_at
+            "updated_at": data.updated_at,
+            "scholarship_title": sch_title,
+            "scholarship_university": sch_univ,
+            "application_responses": app_responses,
         }
 
     model_config = {"from_attributes": True}
+

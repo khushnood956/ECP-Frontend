@@ -49,8 +49,7 @@ class ScholarshipService(BaseService[Scholarship, Any, Any]):
         role_str = user.role.value if hasattr(user.role, "value") else str(user.role)
         if role_str != "agency":
             return None
-        if hasattr(user, "agency_profile") and user.agency_profile is not None:
-            return str(user.agency_profile.id)
+
         try:
             from sqlalchemy import select
 
@@ -258,8 +257,34 @@ class ScholarshipService(BaseService[Scholarship, Any, Any]):
                 raise BusinessRuleViolation("Invalid agency")
 
         async with self.transaction_manager.transaction():
+            app_reqs = data.pop("application_requirements", None)
             model_instance = self._to_model(data)
-            return await self.repository.create(model_instance)
+            created = await self.repository.create(model_instance)
+            
+            if app_reqs:
+                import uuid
+                from app.models.application import ScholarshipApplicationRequirement
+                for req in app_reqs:
+                    if hasattr(req, "model_dump"):
+                        req = req.model_dump()
+                    elif not isinstance(req, dict):
+                        req = dict(req)
+                    db_req = ScholarshipApplicationRequirement(
+                        id=str(uuid.uuid4()),
+                        scholarship_id=created.id,
+                        field_key=req.get("field_key"),
+                        label=req.get("label"),
+                        field_type=req.get("field_type"),
+                        is_required=req.get("is_required", True),
+                        options=req.get("options"),
+                        display_order=req.get("display_order", 0)
+                    )
+                    self.transaction_manager.session.add(db_req)
+
+                await self.transaction_manager.session.flush()
+
+            reloaded = await self.repository.get_by_id(created.id)
+            return reloaded or created
 
 
     async def update(self, id: UUID, obj_in: Any, user: Any = None) -> Scholarship | None:
@@ -310,6 +335,7 @@ class ScholarshipService(BaseService[Scholarship, Any, Any]):
                     from app.services.exceptions import BusinessRuleViolation
                     raise BusinessRuleViolation("Scholarship deadline cannot be in the past")
 
+            app_reqs = data.pop("application_requirements", None)
             title = data.get("title")
             if title:
                 existing_schs = await self.repository.list(title=title)
@@ -317,7 +343,39 @@ class ScholarshipService(BaseService[Scholarship, Any, Any]):
                     from app.services.exceptions import EntityAlreadyExists
                     raise EntityAlreadyExists(f"Scholarship with title '{title}' already exists.")
 
-            return await self.repository.update(id, data)
+            updated = await self.repository.update(id, data)
+            
+            if app_reqs is not None:
+                from sqlalchemy import delete
+                from app.models.application import ScholarshipApplicationRequirement
+                import uuid
+                
+                del_stmt = delete(ScholarshipApplicationRequirement).where(ScholarshipApplicationRequirement.scholarship_id == str(id))
+                await self.transaction_manager.session.execute(del_stmt)
+                
+                for req in app_reqs:
+                    if hasattr(req, "model_dump"):
+                        req = req.model_dump()
+                    elif not isinstance(req, dict):
+                        req = dict(req)
+                    db_req = ScholarshipApplicationRequirement(
+                        id=str(uuid.uuid4()),
+                        scholarship_id=str(id),
+                        field_key=req.get("field_key"),
+                        label=req.get("label"),
+                        field_type=req.get("field_type"),
+                        is_required=req.get("is_required", True),
+                        options=req.get("options"),
+                        display_order=req.get("display_order", 0)
+                    )
+                    self.transaction_manager.session.add(db_req)
+
+                await self.transaction_manager.session.flush()
+
+        await self.transaction_manager.session.flush()
+
+        reloaded = await self.repository.get_by_id(id)
+        return reloaded or updated
 
     async def delete(self, id: UUID, user: Any = None) -> bool:
         async with self.transaction_manager.transaction():

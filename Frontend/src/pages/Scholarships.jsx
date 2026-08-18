@@ -4,6 +4,7 @@ import { Bookmark, MapPin, GraduationCap, Calendar, ChevronDown, X, ListFilter }
 import { Link } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { useAppContext } from '../context/AppContext';
+import { useStudentBookmarks, useCreateBookmark, useDeleteBookmark } from '../hooks/useBookmarks';
 
 // A single styled filter dropdown: icon + label + custom chevron, card-consistent look
 const FilterSelect = ({ icon: Icon, label, value, onChange, options }) => {
@@ -68,6 +69,52 @@ const FilterSelect = ({ icon: Icon, label, value, onChange, options }) => {
         />
       </div>
     </div>
+  );
+};
+
+const BookmarkButton = ({ type, resourceId }) => {
+  const { data: bookmarks = [] } = useStudentBookmarks();
+  const createMutation = useCreateBookmark();
+  const deleteMutation = useDeleteBookmark();
+
+  const bookmark = bookmarks.find(b => b.bookmark_type === type && (b.scholarship_id === resourceId || b.university_id === resourceId));
+  const isBookmarked = !!bookmark;
+
+  const handleToggle = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isBookmarked) {
+      deleteMutation.mutate(bookmark.id);
+    } else {
+      createMutation.mutate({
+        bookmarkType: type,
+        scholarshipId: type === 'scholarship' ? resourceId : null,
+        universityId: type === 'university' ? resourceId : null
+      });
+    }
+  };
+
+  return (
+    <button
+      onClick={handleToggle}
+      style={{
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        color: isBookmarked ? 'var(--primary-green)' : 'var(--text-gray)',
+        transition: 'transform 0.15s ease, color 0.15s ease',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '4px'
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.15)'; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+      disabled={createMutation.isPending || deleteMutation.isPending}
+      title={isBookmarked ? "Remove Bookmark" : "Bookmark this"}
+    >
+      <Bookmark size={20} fill={isBookmarked ? 'var(--primary-green)' : 'none'} />
+    </button>
   );
 };
 
@@ -203,7 +250,7 @@ const Scholarships = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
           {filtered.map(s => (
             <div key={s.id} className="widget" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative', transition: 'transform 0.2s, box-shadow 0.2s' }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }} onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
                 <div>
                   <span style={{ display: 'inline-block', background: 'var(--primary-green-light)', color: 'var(--primary-green)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.75rem' }}>
                     {formatCurrency(s.amount, s.currency, 'Funding Available')}
@@ -215,6 +262,7 @@ const Scholarships = () => {
                     <GraduationCap size={16} /> {s.university || 'Various Universities'}
                   </p>
                 </div>
+                <BookmarkButton type="scholarship" resourceId={s.id} />
               </div>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', fontSize: '0.875rem', color: 'var(--text-gray)' }}>

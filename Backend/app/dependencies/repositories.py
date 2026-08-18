@@ -68,7 +68,11 @@ def get_attendance_repository(
     return AttendanceRepository(session)
 
 
+from app.repositories.bookmark_repository import BookmarkRepository
+from app.repositories.document_repository import DocumentRepository
+from app.repositories.notification_repository import NotificationRepository
 from app.repositories.university_repository import UniversityRepository
+
 
 def get_university_repository(
     session: AsyncSession = Depends(get_db_session),
@@ -76,3 +80,23 @@ def get_university_repository(
     """Provides a fresh UniversityRepository bound to the current session."""
     return UniversityRepository(session)
 
+
+def get_document_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> DocumentRepository:
+    """Provides a fresh DocumentRepository bound to the current session."""
+    return DocumentRepository(session)
+
+
+def get_bookmark_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> BookmarkRepository:
+    """Provides a fresh BookmarkRepository bound to the current session."""
+    return BookmarkRepository(session)
+
+
+def get_notification_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> NotificationRepository:
+    """Provides a fresh NotificationRepository bound to the current session."""
+    return NotificationRepository(session)

@@ -31,8 +31,7 @@ class AttendanceService(BaseService[Attendance, Any, Any]):
     async def _get_user_agency_id(self, user: User) -> str | None:
         if user.role != UserRole.AGENCY:
             return None
-        if hasattr(user, "agency_profile") and user.agency_profile is not None:
-            return str(user.agency_profile.id)
+
         try:
             from app.models.agency import Agency
             stmt = select(Agency).where(Agency.user_id == str(user.id))

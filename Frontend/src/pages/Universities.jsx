@@ -3,6 +3,53 @@ import { useStudentUniversities } from '../hooks/useUniversities';
 import { Bookmark, MapPin, Award, BookOpen, Building2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+import { useStudentBookmarks, useCreateBookmark, useDeleteBookmark } from '../hooks/useBookmarks';
+
+const BookmarkButton = ({ type, resourceId }) => {
+  const { data: bookmarks = [] } = useStudentBookmarks();
+  const createMutation = useCreateBookmark();
+  const deleteMutation = useDeleteBookmark();
+
+  const bookmark = bookmarks.find(b => b.bookmark_type === type && (b.scholarship_id === resourceId || b.university_id === resourceId));
+  const isBookmarked = !!bookmark;
+
+  const handleToggle = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isBookmarked) {
+      deleteMutation.mutate(bookmark.id);
+    } else {
+      createMutation.mutate({
+        bookmarkType: type,
+        scholarshipId: type === 'scholarship' ? resourceId : null,
+        universityId: type === 'university' ? resourceId : null
+      });
+    }
+  };
+
+  return (
+    <button
+      onClick={handleToggle}
+      style={{
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        color: isBookmarked ? 'var(--primary-green)' : 'var(--text-gray)',
+        transition: 'transform 0.15s ease, color 0.15s ease',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '4px'
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.15)'; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+      disabled={createMutation.isPending || deleteMutation.isPending}
+      title={isBookmarked ? "Remove Bookmark" : "Bookmark this"}
+    >
+      <Bookmark size={20} fill={isBookmarked ? 'var(--primary-green)' : 'none'} />
+    </button>
+  );
+};
 
 const Universities = () => {
   const { searchQuery } = useAppContext();
@@ -98,7 +145,7 @@ const Universities = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
           {filtered.map(u => (
             <div key={u.id} className="widget" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative', transition: 'transform 0.2s, box-shadow 0.2s' }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }} onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
                 <div>
                   {u.ranking && (
                     <span style={{ display: 'inline-flex', background: 'var(--bg-gray)', color: 'var(--text-dark)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.75rem', alignItems: 'center', gap: '0.25rem' }}>
@@ -112,6 +159,7 @@ const Universities = () => {
                     <MapPin size={16} /> {u.location}
                   </p>
                 </div>
+                <BookmarkButton type="university" resourceId={u.id} />
               </div>
               
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>

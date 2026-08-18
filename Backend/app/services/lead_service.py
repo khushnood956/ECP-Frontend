@@ -57,7 +57,31 @@ class LeadService(BaseService[Lead, Any, Any]):
                 "status": new_status,
                 "status_updated_at": datetime.now(timezone.utc),
             }
-            return await self.repository.update(lead_id, update_data)  # type: ignore
+            updated_lead = await self.repository.update(lead_id, update_data)  # type: ignore
+
+            # Retrieve student user_id to send notification
+            from sqlalchemy import select
+
+            from app.models.notification import Notification
+            from app.models.student_profile import StudentProfile
+            
+            student_stmt = select(StudentProfile).where(StudentProfile.id == str(lead.student_id))
+            result = await self.repository.session.execute(student_stmt)
+            student_profile = result.scalar_one_or_none()
+            if student_profile:
+                status_label = new_status.value.replace('_', ' ').title()
+                notif = Notification(
+                    user_id=str(student_profile.user_id),
+                    title="Application Update",
+                    message=f"Your application status has been updated to '{status_label}'.",
+                    related_entity_id=str(lead_id),
+                    is_read=False
+                )
+                self.repository.session.add(notif)
+
+            if not updated_lead:
+                raise EntityNotFound(f"Lead with id {lead_id} not found.")
+            return updated_lead
 
     async def schedule_follow_up(self, lead_id: UUID, follow_up_date: datetime) -> Lead:
         if follow_up_date.tzinfo is None:
@@ -217,6 +241,8 @@ class LeadService(BaseService[Lead, Any, Any]):
             notes=data.get("notes")
         )
 
+        app_responses = data.pop("application_responses", None)
+
         db_data = {
             "student_id": str(student_profile.id),
             "scholarship_id": str(scholarship_id),
@@ -227,7 +253,40 @@ class LeadService(BaseService[Lead, Any, Any]):
 
         async with self.transaction_manager.transaction():
             model_instance = self._to_model(db_data)
-            return await self.repository.create(model_instance)
+            created_lead = await self.repository.create(model_instance)
+            
+            if app_responses:
+                import uuid
+                from app.models.application import StudentApplicationResponse
+                for resp in app_responses:
+                    if hasattr(resp, "model_dump"):
+                        resp = resp.model_dump()
+                    elif not isinstance(resp, dict):
+                        resp = dict(resp)
+                    db_resp = StudentApplicationResponse(
+                        id=str(uuid.uuid4()),
+                        lead_id=created_lead.id,
+                        requirement_id=resp.get("requirement_id"),
+                        value=resp.get("value"),
+                        file_url=resp.get("file_url")
+                    )
+                    self.transaction_manager.session.add(db_resp)
+
+            # Create notification for student
+            from app.models.notification import Notification
+            notif = Notification(
+                user_id=str(user.id),
+                title="Application Submitted",
+                message=f"Your application for '{scholarship.title}' has been successfully submitted.",
+                related_entity_id=str(created_lead.id),
+                is_read=False
+            )
+            self.transaction_manager.session.add(notif)
+
+            await self.transaction_manager.session.flush()
+
+            reloaded = await self.repository.get_by_id(created_lead.id)
+            return reloaded or created_lead
 
     async def update(self, id: UUID, obj_in: Any, user: Any = None) -> Lead | None:
         if user is None:
@@ -313,6 +372,7 @@ class LeadService(BaseService[Lead, Any, Any]):
                 }
                 target_status_str = status_rev_map.get(target_status_str)
 
+            target_status = None
             allowed = False
             if current_status_str == "submitted":
                 if target_status_str == "under_review":
@@ -329,11 +389,30 @@ class LeadService(BaseService[Lead, Any, Any]):
                     allowed = True
                     target_status = LeadStatus.CONTACTED
 
-            if not allowed:
+            if not allowed or target_status is None:
                 raise BusinessRuleViolation(f"Invalid status transition from '{current_status_str}' to '{target_status_str}'.")
 
             async with self.transaction_manager.transaction():
-                return await self.repository.update(id, {"status": target_status, "status_updated_at": datetime.now(timezone.utc)})
+                updated = await self.repository.update(id, {"status": target_status, "status_updated_at": datetime.now(timezone.utc)})
+                
+                # Send notification on status update
+                from app.models.notification import Notification
+                from app.models.student_profile import StudentProfile
+                from sqlalchemy import select
+                student_stmt = select(StudentProfile).where(StudentProfile.id == str(lead.student_id))
+                result = await self.repository.session.execute(student_stmt)
+                student_profile = result.scalar_one_or_none()
+                if student_profile:
+                    status_label = target_status.value.replace('_', ' ').title()
+                    notif = Notification(
+                        user_id=str(student_profile.user_id),
+                        title="Application Update",
+                        message=f"Your application status has been updated to '{status_label}'.",
+                        related_entity_id=str(lead.id),
+                        is_read=False
+                    )
+                    self.transaction_manager.session.add(notif)
+                return updated
 
         elif user.role == UserRole.ADMIN:
             update_fields: dict[str, Any] = {}

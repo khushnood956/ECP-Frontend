@@ -8,13 +8,11 @@ from app.dependencies.auth import get_current_active_user
 from app.dependencies.services import get_university_service
 from app.models.enums import UserRole
 from app.models.user import User
-from app.models.university import University
 from app.schemas.university import (
     UniversityCreate,
     UniversityResponse,
-    UniversityUpdate,
 )
-from app.services.exceptions import PermissionDenied, EntityNotFound
+from app.services.exceptions import EntityNotFound, PermissionDenied
 from app.services.university_service import UniversityService
 
 router = APIRouter()

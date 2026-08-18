@@ -42,6 +42,8 @@ class StudentProfile(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     # Relationships
     user = relationship("User", back_populates="student_profile")
     leads = relationship("Lead", back_populates="student", cascade="all, delete-orphan")
+    documents = relationship("Document", back_populates="student", cascade="all, delete-orphan")
+    bookmarks = relationship("Bookmark", back_populates="student", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<StudentProfile {self.first_name} {self.last_name}>"

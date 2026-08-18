@@ -10,22 +10,6 @@ export const mockUniversities = [
   { id: '3', name: 'MIT', location: 'USA', ranking: 'Top 10', type: 'Private', tuitionCategory: 'High', programs: ['Engineering', 'Computer Science', 'Physics'], bookmarked: false }
 ];
 
-export const mockApplications = [
-  { id: '1', university: 'University of Toronto', program: 'MSc Computer Science', intake: 'Fall 2026', status: 'Submitted', date: '2026-06-15' },
-  { id: '2', university: 'University of Melbourne', program: 'Master of Data Science', intake: 'Spring 2027', status: 'In Review', date: '2026-07-01' }
-];
-
-export const mockDocuments = [
-  { id: '1', name: 'IELTS_Certificate.pdf', type: 'Language Test', uploadDate: '2026-07-10', verified: true },
-  { id: '2', name: 'Bachelors_Transcript.pdf', type: 'Academic', uploadDate: '2026-07-12', verified: true },
-  { id: '3', name: 'Passport_Copy.pdf', type: 'ID', uploadDate: '2026-07-14', verified: false }
-];
-
-export const mockNotifications = [
-  { id: '1', title: 'Application Update', message: 'Your application to University of Toronto is submitted.', time: '2 hours ago', read: false },
-  { id: '2', title: 'Document Verified', message: 'Your IELTS Certificate has been verified.', time: '1 day ago', read: true }
-];
-
 // Helper to init local storage
 export const initMockData = () => {
   const existingScholarships = JSON.parse(localStorage.getItem('ecp_scholarships'));
@@ -35,15 +19,6 @@ export const initMockData = () => {
   const existingUniversities = JSON.parse(localStorage.getItem('ecp_universities'));
   if (!existingUniversities || !existingUniversities[0]?.tuitionCategory) {
     localStorage.setItem('ecp_universities', JSON.stringify(mockUniversities));
-  }
-  if (!localStorage.getItem('ecp_applications')) {
-    localStorage.setItem('ecp_applications', JSON.stringify(mockApplications));
-  }
-  if (!localStorage.getItem('ecp_documents')) {
-    localStorage.setItem('ecp_documents', JSON.stringify(mockDocuments));
-  }
-  if (!localStorage.getItem('ecp_notifications')) {
-    localStorage.setItem('ecp_notifications', JSON.stringify(mockNotifications));
   }
 };
 

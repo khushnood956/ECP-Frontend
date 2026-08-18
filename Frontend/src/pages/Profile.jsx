@@ -8,7 +8,7 @@ const Profile = () => {
 
   const [formData, setFormData] = useState({
     name: user?.name || '',
-    email: user?.email || '',
+    email: user?.sub || user?.email || '',
     degreePreference: user?.degreePreference || '',
     ieltsScore: user?.ieltsScore || '',
     profileImg: user?.profileImg || ''
@@ -20,7 +20,7 @@ const Profile = () => {
 
   const isDirty = 
     formData.name !== (user?.name || '') ||
-    formData.email !== (user?.email || '') ||
+    formData.email !== (user?.sub || user?.email || '') ||
     formData.degreePreference !== (user?.degreePreference || '') ||
     formData.ieltsScore !== (user?.ieltsScore || '') ||
     formData.profileImg !== (user?.profileImg || '');
@@ -29,7 +29,7 @@ const Profile = () => {
     if (user) {
       setFormData({
         name: user.name || '',
-        email: user.email || '',
+        email: user.sub || user.email || '',
         degreePreference: user.degreePreference || '',
         ieltsScore: user.ieltsScore || '',
         profileImg: user.profileImg || ''

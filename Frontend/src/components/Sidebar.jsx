@@ -5,6 +5,7 @@ import {
   GraduationCap, LayoutDashboard, Search, FileText, 
   Building, User, Settings, LogOut
 } from 'lucide-react';
+import EdutantIcon from './ui/EdutantIcon';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const { logout, user } = useAuth();
@@ -46,8 +47,8 @@ const Sidebar = ({ isOpen, onClose }) => {
   return (
     <div className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="brand" style={{ cursor: 'pointer' }} onClick={() => { navigate('/'); onClose?.(); }}>
-        <GraduationCap className="brand-icon" size={28} />
-        EduConsultant
+        <EdutantIcon className="brand-icon" size={28} />
+        Edutant
       </div>
       <ul className="nav-menu">
         {navItems.map((item) => {
