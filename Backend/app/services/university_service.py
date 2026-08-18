@@ -3,8 +3,8 @@ from typing import Any
 
 from app.models.university import University
 from app.repositories.params import PaginatedResult, PaginationParams
-from app.repositories.university_repository import UniversityRepository
 from app.repositories.transaction import TransactionManager
+from app.repositories.university_repository import UniversityRepository
 from app.services.base import BaseService
 
 

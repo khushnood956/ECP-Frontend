@@ -36,5 +36,12 @@ def get_scholarship_repository(
     return ScholarshipRepository(session)
 
 
+from app.repositories.document_repository import DocumentRepository
+
+
 def get_lead_repository(session: AsyncSession = Depends(get_db)) -> LeadRepository:
     return LeadRepository(session)
+
+
+def get_document_repository(session: AsyncSession = Depends(get_db)) -> DocumentRepository:
+    return DocumentRepository(session)

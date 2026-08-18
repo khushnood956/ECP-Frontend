@@ -1,13 +1,64 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStudentScholarship } from '../hooks/useScholarships';
-import { ArrowLeft, Calendar, DollarSign, GraduationCap, MapPin, CheckCircle, Info, FileText } from 'lucide-react';
+import { ArrowLeft, Calendar, DollarSign, GraduationCap, MapPin, CheckCircle, Info, FileText, Bookmark } from 'lucide-react';
 import { formatDate, formatCurrency, formatNullable } from '../utils/formatters';
+import { useStudentBookmarks, useCreateBookmark, useDeleteBookmark } from '../hooks/useBookmarks';
+import { ApplyModal } from '../components/ApplyModal';
+
+const BookmarkButton = ({ type, resourceId }) => {
+  const { data: bookmarks = [] } = useStudentBookmarks();
+  const createMutation = useCreateBookmark();
+  const deleteMutation = useDeleteBookmark();
+
+  const bookmark = bookmarks.find(b => b.bookmark_type === type && (b.scholarship_id === resourceId || b.university_id === resourceId));
+  const isBookmarked = !!bookmark;
+
+  const handleToggle = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isBookmarked) {
+      deleteMutation.mutate(bookmark.id);
+    } else {
+      createMutation.mutate({
+        bookmarkType: type,
+        scholarshipId: type === 'scholarship' ? resourceId : null,
+        universityId: type === 'university' ? resourceId : null
+      });
+    }
+  };
+
+  return (
+    <button
+      onClick={handleToggle}
+      style={{
+        background: 'none',
+        border: '1px solid var(--border-color)',
+        borderRadius: 'var(--radius-md)',
+        cursor: 'pointer',
+        color: isBookmarked ? 'var(--primary-green)' : 'var(--text-gray)',
+        transition: 'all 0.15s ease',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '0.75rem',
+        backgroundColor: 'var(--bg-white)',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.borderColor = 'var(--primary-green)'; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}
+      disabled={createMutation.isPending || deleteMutation.isPending}
+      title={isBookmarked ? "Remove Bookmark" : "Bookmark this"}
+    >
+      <Bookmark size={20} fill={isBookmarked ? 'var(--primary-green)' : 'none'} />
+    </button>
+  );
+};
 
 const ScholarshipDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: scholarship, isLoading, error } = useStudentScholarship(id || '');
+  const [showApplyModal, setShowApplyModal] = useState(false);
   
   if (isLoading) {
     return (
@@ -50,18 +101,26 @@ const ScholarshipDetail = () => {
                 <GraduationCap size={20} /> {scholarship.university || 'Various Universities'}
               </p>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button 
+                onClick={() => setShowApplyModal(true)} 
+                className="btn btn-primary" 
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                Apply Now
+              </button>
               {scholarship.application_link && (
                 <a 
                   href={scholarship.application_link} 
                   target="_blank" 
                   rel="noreferrer" 
-                  className="btn btn-primary" 
+                  className="btn btn-outline" 
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}
                 >
-                  Apply Online
+                  External Link
                 </a>
               )}
+              <BookmarkButton type="scholarship" resourceId={scholarship.id} />
             </div>
           </div>
           
@@ -111,6 +170,13 @@ const ScholarshipDetail = () => {
           </div>
         </div>
       </div>
+
+      {showApplyModal && (
+        <ApplyModal 
+          scholarship={scholarship} 
+          onClose={() => setShowApplyModal(false)} 
+        />
+      )}
     </div>
   );
 };

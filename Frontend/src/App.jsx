@@ -29,6 +29,7 @@ import ScholarshipsListPage from './pages/agency/ScholarshipsListPage';
 import ScholarshipDetailsPage from './pages/agency/ScholarshipDetailsPage';
 import CreateScholarshipPage from './pages/agency/CreateScholarshipPage';
 import EditScholarshipPage from './pages/agency/EditScholarshipPage';
+import AdminDashboard from './pages/admin/AdminDashboard';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RoleGuard } from './components/shared/RoleGuard';
@@ -190,6 +191,14 @@ const router = createBrowserRouter([
         element: (
           <RoleGuard allowedRoles={['agency']}>
             <EditScholarshipPage />
+          </RoleGuard>
+        )
+      },
+      {
+        path: '/admin/dashboard',
+        element: (
+          <RoleGuard allowedRoles={['admin']}>
+            <AdminDashboard />
           </RoleGuard>
         )
       }

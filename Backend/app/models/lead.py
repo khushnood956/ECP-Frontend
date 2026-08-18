@@ -37,7 +37,10 @@ class Lead(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     # Relationships
     student = relationship("StudentProfile", back_populates="leads")
     agency = relationship("Agency", back_populates="leads")
-    scholarship = relationship("Scholarship", back_populates="leads")
+    scholarship = relationship("Scholarship", back_populates="leads", lazy="joined")
+    application_responses = relationship(
+        "StudentApplicationResponse", back_populates="lead", cascade="all, delete-orphan", lazy="selectin"
+    )
 
     def __repr__(self) -> str:
         return f"<Lead (Student: {self.student_id}, Scholarship: {self.scholarship_id}, Status: {self.status.value})>"

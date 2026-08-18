@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { GraduationCap } from 'lucide-react';
+import EdutantIcon from '../components/ui/EdutantIcon';
 
 const Login = () => {
   const { login } = useAuth();
@@ -67,8 +68,8 @@ const Login = () => {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-brand">
-          <GraduationCap className="brand-icon" size={32} />
-          <span>EduConsultant</span>
+          <EdutantIcon className="brand-icon" size={32} />
+          <span>Edutant</span>
         </div>
         <h2 className="auth-title">Welcome back</h2>
         <p className="auth-subtitle">Sign in to your account</p>

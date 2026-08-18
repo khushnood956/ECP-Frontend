@@ -27,12 +27,12 @@ async def login_for_access_token(
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.email, "role": user.role}, expires_delta=access_token_expires
+        data={"sub": user.email, "role": user.role, "id": str(user.id)}, expires_delta=access_token_expires
     )
     
     from app.core.security import create_refresh_token
     refresh_token = create_refresh_token(
-        data={"sub": user.email, "role": user.role}
+        data={"sub": user.email, "role": user.role, "id": str(user.id)}
     )
     
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
@@ -97,11 +97,11 @@ async def refresh_access_token(
     # Issue new tokens
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.email, "role": user.role}, expires_delta=access_token_expires
+        data={"sub": user.email, "role": user.role, "id": str(user.id)}, expires_delta=access_token_expires
     )
     from app.core.security import create_refresh_token
     new_refresh_token = create_refresh_token(
-        data={"sub": user.email, "role": user.role}
+        data={"sub": user.email, "role": user.role, "id": str(user.id)}
     )
     
     return {"access_token": access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}

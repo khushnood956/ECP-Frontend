@@ -7,6 +7,7 @@ from httpx import ASGITransport, AsyncClient
 from app.dependencies.auth import get_current_active_user
 from app.models.enums import LeadStatus, UserRole
 from app.models.user import User
+from app.schemas.lead import LeadResponse
 from app.services.exceptions import (
     BusinessRuleViolation,
     EntityAlreadyExists,
@@ -36,6 +37,14 @@ class MockLead:
         self.follow_up_date = None
         self.created_at = "2026-08-07T15:00:00Z"
         self.updated_at = "2026-08-07T15:00:00Z"
+
+
+class MockApplicationResponse:
+    def __init__(self):
+        self.id = uuid4()
+        self.requirement_id = uuid4()
+        self.value = "Sample value"
+        self.file_url = None
 
 
 @pytest.mark.asyncio
@@ -98,6 +107,22 @@ async def test_get_lead_by_id():
             response = await client.get(f"/api/v1/leads/{lead_id}")
         assert response.status_code == 200
         assert response.json()["data"]["id"] == str(lead_id)
+
+
+@pytest.mark.asyncio
+async def test_lead_response_serializes_nested_responses():
+    mock_lead = MockLead()
+    mock_lead.scholarship = type(
+        "MockScholarship",
+        (),
+        {"title": "Test Scholarship", "university": "Test University"},
+    )()
+    mock_lead.application_responses = [MockApplicationResponse()]
+
+    response = LeadResponse.model_validate(mock_lead).model_dump()
+
+    assert response["scholarship_title"] == "Test Scholarship"
+    assert response["application_responses"][0]["value"] == "Sample value"
 
 
 @pytest.mark.asyncio
@@ -319,3 +344,29 @@ async def test_invalid_jwt():
         response = await client.get("/api/v1/leads", headers=headers)
     assert response.status_code == 401
     app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+
+class MockScholarship:
+    def __init__(self, title, university):
+        self.title = title
+        self.university = university
+
+
+class MockLeadWithScholarship(MockLead):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.scholarship = MockScholarship(title="Test Scholarship", university="Test University")
+
+
+@pytest.mark.asyncio
+async def test_lead_response_includes_scholarship_details():
+    lead_id = uuid4()
+    with patch('app.services.lead_service.LeadService.get_by_id', new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = MockLeadWithScholarship(lead_id=lead_id)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(f"/api/v1/leads/{lead_id}")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["id"] == str(lead_id)
+        assert data["scholarship_title"] == "Test Scholarship"
+        assert data["scholarship_university"] == "Test University"

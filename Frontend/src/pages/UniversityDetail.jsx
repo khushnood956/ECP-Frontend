@@ -1,8 +1,57 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStudentUniversity } from '../hooks/useUniversities';
-import { ArrowLeft, MapPin, Award, Building2, BookOpen, Globe } from 'lucide-react';
+import { ArrowLeft, MapPin, Award, Building2, BookOpen, Globe, Bookmark } from 'lucide-react';
 import { formatNullable } from '../utils/formatters';
+import { useStudentBookmarks, useCreateBookmark, useDeleteBookmark } from '../hooks/useBookmarks';
+
+const BookmarkButton = ({ type, resourceId }) => {
+  const { data: bookmarks = [] } = useStudentBookmarks();
+  const createMutation = useCreateBookmark();
+  const deleteMutation = useDeleteBookmark();
+
+  const bookmark = bookmarks.find(b => b.bookmark_type === type && (b.scholarship_id === resourceId || b.university_id === resourceId));
+  const isBookmarked = !!bookmark;
+
+  const handleToggle = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isBookmarked) {
+      deleteMutation.mutate(bookmark.id);
+    } else {
+      createMutation.mutate({
+        bookmarkType: type,
+        scholarshipId: type === 'scholarship' ? resourceId : null,
+        universityId: type === 'university' ? resourceId : null
+      });
+    }
+  };
+
+  return (
+    <button
+      onClick={handleToggle}
+      style={{
+        background: 'none',
+        border: '1px solid var(--border-color)',
+        borderRadius: 'var(--radius-md)',
+        cursor: 'pointer',
+        color: isBookmarked ? 'var(--primary-green)' : 'var(--text-gray)',
+        transition: 'all 0.15s ease',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '0.75rem',
+        backgroundColor: 'var(--bg-white)',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.borderColor = 'var(--primary-green)'; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}
+      disabled={createMutation.isPending || deleteMutation.isPending}
+      title={isBookmarked ? "Remove Bookmark" : "Bookmark this"}
+    >
+      <Bookmark size={20} fill={isBookmarked ? 'var(--primary-green)' : 'none'} />
+    </button>
+  );
+};
 
 const UniversityDetail = () => {
   const { id } = useParams();
@@ -41,7 +90,7 @@ const UniversityDetail = () => {
       
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
         <div className="widget" style={{ position: 'relative' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem', width: '100%' }}>
             <div>
               {university.ranking && (
                 <span style={{ display: 'inline-flex', background: 'var(--bg-gray)', color: 'var(--text-dark)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.75rem', alignItems: 'center', gap: '0.25rem' }}>
@@ -53,6 +102,7 @@ const UniversityDetail = () => {
                 <MapPin size={20} /> {university.location}
               </p>
             </div>
+            <BookmarkButton type="university" resourceId={university.id} />
           </div>
           
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', padding: '1.5rem', background: 'var(--bg-gray)', borderRadius: 'var(--radius-md)', marginBottom: '2rem' }}>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -6,6 +6,7 @@ import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';
 import { Textarea } from '../../components/shared/Textarea';
 import { Label } from '../../components/shared/Label';
+import { ApplicationRequirementsBuilder } from './ApplicationRequirementsBuilder';
 
 const scholarshipSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -30,6 +31,8 @@ const scholarshipSchema = z.object({
 });
 
 export const ScholarshipForm = ({ initialValues, onSubmit, isSubmitting }) => {
+  const [requirements, setRequirements] = useState(initialValues?.application_requirements || []);
+
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(scholarshipSchema),
     defaultValues: {
@@ -55,6 +58,10 @@ export const ScholarshipForm = ({ initialValues, onSubmit, isSubmitting }) => {
     if (cleanedData.eligibility === '') cleanedData.eligibility = null;
     if (cleanedData.description === '') cleanedData.description = null;
     if (cleanedData.application_link === '') cleanedData.application_link = null;
+    
+    // Add requirements
+    cleanedData.application_requirements = requirements;
+
     onSubmit(cleanedData);
   };
 
@@ -163,6 +170,13 @@ export const ScholarshipForm = ({ initialValues, onSubmit, isSubmitting }) => {
           <Textarea id="description" rows={5} placeholder="Describe the benefits, fields of study, etc." {...register('description')} error={errors.description?.message} className="mt-1" />
         </div>
       </div>
+      
+      <div style={{ height: '1px', backgroundColor: 'var(--border-color)', margin: '2rem 0' }}></div>
+      
+      <ApplicationRequirementsBuilder 
+        requirements={requirements}
+        setRequirements={setRequirements}
+      />
 
       <div style={{ display: 'flex', justifyContent: 'end', marginTop: '2rem' }}>
         <Button type="submit" isLoading={isSubmitting}>
@@ -172,3 +186,4 @@ export const ScholarshipForm = ({ initialValues, onSubmit, isSubmitting }) => {
     </form>
   );
 };
+

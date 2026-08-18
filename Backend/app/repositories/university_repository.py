@@ -1,8 +1,8 @@
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.university import University
 from app.repositories.base import BaseRepository

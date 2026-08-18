@@ -37,6 +37,9 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     agency_profile = relationship(
         "Agency", back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
+    notifications = relationship(
+        "Notification", back_populates="user", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<User {self.email} (Role: {self.role.value})>"

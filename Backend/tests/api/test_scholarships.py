@@ -7,6 +7,7 @@ from httpx import ASGITransport, AsyncClient
 from app.dependencies.auth import get_current_active_user
 from app.models.enums import DegreeLevel, FundingType, UserRole
 from app.models.user import User
+from app.schemas.scholarship import ScholarshipResponse
 from app.services.exceptions import (
     BusinessRuleViolation,
     EntityAlreadyExists,
@@ -41,6 +42,18 @@ class MockScholarship:
         self.is_active = True
         self.created_at = "2026-01-01T00:00:00Z"
         self.updated_at = "2026-01-01T00:00:00Z"
+
+
+class MockRequirement:
+    def __init__(self, requirement_id=None):
+        self.id = requirement_id or uuid4()
+        self.scholarship_id = uuid4()
+        self.field_key = "passport_number"
+        self.label = "Passport Number"
+        self.field_type = "text"
+        self.is_required = True
+        self.options = None
+        self.display_order = 0
 
 
 @pytest.mark.asyncio
@@ -142,6 +155,16 @@ async def test_get_scholarship_by_id():
             response = await client.get(f"/api/v1/scholarships/{sch_id}")
         assert response.status_code == 200
         assert response.json()["data"]["id"] == str(sch_id)
+
+
+@pytest.mark.asyncio
+async def test_scholarship_response_serializes_requirements():
+    mock_scholarship = MockScholarship()
+    mock_scholarship.application_requirements = [MockRequirement()]
+
+    response = ScholarshipResponse.model_validate(mock_scholarship).model_dump()
+
+    assert response["application_requirements"][0]["field_key"] == "passport_number"
 
 
 @pytest.mark.asyncio

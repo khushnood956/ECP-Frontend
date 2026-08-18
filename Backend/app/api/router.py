@@ -5,13 +5,15 @@ from app.api.v1 import (
     agencies,
     attendance,
     auth,
+    bookmarks,
     classes,
     enrollments,
     leads,
+    notifications,
     scholarships,
     students,
-    users,
     universities,
+    users,
 )
 
 api_router = APIRouter()
@@ -31,3 +33,5 @@ api_router.include_router(auth.router, prefix="/auth", tags=["Auth"])
 api_router.include_router(classes.router, prefix="/classes", tags=["Classes"])
 api_router.include_router(enrollments.router, prefix="/enrollments", tags=["Enrollments"])
 api_router.include_router(attendance.router, prefix="/attendance", tags=["Attendance"])
+api_router.include_router(bookmarks.router, prefix="/bookmarks", tags=["Bookmarks"])
+api_router.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])

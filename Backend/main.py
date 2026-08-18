@@ -47,7 +47,6 @@ def create_app() -> FastAPI:
     )
 
     # Register Middlewares
-    # The order of middleware matters. Add Request Logging first so it wraps everything.
     app.add_middleware(RequestLoggingMiddleware)
 
     if settings.BACKEND_CORS_ORIGINS:

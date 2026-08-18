@@ -50,8 +50,7 @@ class StudentService(BaseService[StudentProfile, Any, Any]):
         role_str = user.role.value if hasattr(user.role, "value") else str(user.role)
         if role_str != "agency":
             return None
-        if hasattr(user, "agency_profile") and user.agency_profile is not None:
-            return str(user.agency_profile.id)
+
         try:
             from sqlalchemy import select
 

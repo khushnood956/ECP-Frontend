@@ -62,3 +62,68 @@ export const useUpdateLead = () => {
     },
   });
 };
+
+export const useCreateLead = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data) => {
+      const response = await LeadAPI.createLead(data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['student-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+};
+
+export const useStudentLeads = (params) => {
+  return useQuery({
+    queryKey: ['student-leads', params],
+    queryFn: async () => {
+      const response = await LeadAPI.getLeads(params);
+      return response.data;
+    },
+  });
+};
+
+export const useStudentLead = (id) => {
+  return useQuery({
+    queryKey: ['student-lead', id],
+    queryFn: async () => {
+      const response = await LeadAPI.getLead(id);
+      return response.data;
+    },
+    enabled: !!id,
+  });
+};
+
+export const useUpdateStudentLead = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, data }) => {
+      const response = await LeadAPI.updateLead(id, data);
+      return response.data;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['student-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['student-lead', variables.id] });
+    },
+  });
+};
+
+export const useDeleteStudentLead = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id) => {
+      const response = await LeadAPI.deleteLead(id);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['student-leads'] });
+    },
+  });
+};

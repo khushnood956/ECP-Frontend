@@ -125,9 +125,21 @@ def get_attendance_service(
     return AttendanceService(repository=repository, transaction_manager=transaction_manager)
 
 
-from app.dependencies.repositories import get_university_repository
+from app.dependencies.repositories import (
+    get_bookmark_repository,
+    get_document_repository,
+    get_notification_repository,
+    get_university_repository,
+)
+from app.repositories.bookmark_repository import BookmarkRepository
+from app.repositories.document_repository import DocumentRepository
+from app.repositories.notification_repository import NotificationRepository
 from app.repositories.university_repository import UniversityRepository
+from app.services.bookmark_service import BookmarkService
+from app.services.document_service import DocumentService
+from app.services.notification_service import NotificationService
 from app.services.university_service import UniversityService
+
 
 def get_university_service(
     repository: UniversityRepository = Depends(get_university_repository),
@@ -136,3 +148,39 @@ def get_university_service(
     """Provides a fully initialized UniversityService."""
     return UniversityService(repository=repository, transaction_manager=transaction_manager)
 
+
+def get_document_service(
+    repository: DocumentRepository = Depends(get_document_repository),
+    student_repository: StudentProfileRepository = Depends(get_student_repository),
+    transaction_manager: TransactionManager = Depends(get_transaction_manager),
+) -> DocumentService:
+    """Provides a fully initialized DocumentService."""
+    return DocumentService(
+        repository=repository,
+        student_repository=student_repository,
+        transaction_manager=transaction_manager
+    )
+
+
+def get_bookmark_service(
+    repository: BookmarkRepository = Depends(get_bookmark_repository),
+    student_repository: StudentProfileRepository = Depends(get_student_repository),
+    transaction_manager: TransactionManager = Depends(get_transaction_manager),
+) -> BookmarkService:
+    """Provides a fully initialized BookmarkService."""
+    return BookmarkService(
+        repository=repository,
+        student_repository=student_repository,
+        transaction_manager=transaction_manager
+    )
+
+
+def get_notification_service(
+    repository: NotificationRepository = Depends(get_notification_repository),
+    transaction_manager: TransactionManager = Depends(get_transaction_manager),
+) -> NotificationService:
+    """Provides a fully initialized NotificationService."""
+    return NotificationService(
+        repository=repository,
+        transaction_manager=transaction_manager
+    )
